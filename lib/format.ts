@@ -16,6 +16,26 @@ export function formatDiff(value: number) {
   return String(value)
 }
 
+export function lobbyText(
+  label: string,
+  lobby: { server: string; scoreA: number | null; scoreB: number | null },
+) {
+  const server = lobby.server || "—"
+  if (lobby.scoreA == null || lobby.scoreB == null) return `${label} ${server}`
+  return `${label} ${server} ${lobby.scoreA}–${lobby.scoreB}`
+}
+
+export function releaseStatus(match: {
+  hidden: boolean
+  playedAt: string | null
+  releaseAt: string | null
+}) {
+  if (match.playedAt) return `Played ${formatWhen(match.playedAt)}`
+  if (!match.hidden) return "Released"
+  if (match.releaseAt) return `Releases ${formatWhen(match.releaseAt)}`
+  return "Hidden"
+}
+
 export const ACCENT_STYLES = {
   gold: {
     bar: "bg-[#e2a100]",

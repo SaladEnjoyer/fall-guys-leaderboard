@@ -1,11 +1,10 @@
 import type { StandingRow, Zone } from "@/lib/types"
 
-export const POINTS_WIN = 3
-export const POINTS_DRAW = 1
+export const POINTS_LOBBY = 5
 
-type PlayerRef = { id: string; name: string }
+type PlayerRef = { id: string; name: string; server: string }
 
-type MatchRef = {
+type LobbyRef = {
   playerAId: string
   playerBId: string
   scoreA: number
@@ -15,9 +14,9 @@ type MatchRef = {
 type Stats = {
   playerId: string
   name: string
+  server: string
   played: number
   wins: number
-  draws: number
   losses: number
   roundsFor: number
   roundsAgainst: number
@@ -79,10 +78,10 @@ export function describeZones(promotionSlots: number, relegationSlots: number) {
 
 export function computeStandings(
   players: PlayerRef[],
-  matches: MatchRef[],
+  lobbies: LobbyRef[],
   promotionSlots: number,
   relegationSlots: number,
-  matchesPlayed: number,
+  lobbiesPlayed: number,
 ): StandingRow[] {
   const stats = new Map<string, Stats>()
 
@@ -90,9 +89,9 @@ export function computeStandings(
     stats.set(player.id, {
       playerId: player.id,
       name: player.name,
+      server: player.server,
       played: 0,
       wins: 0,
-      draws: 0,
       losses: 0,
       roundsFor: 0,
       roundsAgainst: 0,
@@ -101,31 +100,27 @@ export function computeStandings(
     })
   }
 
-  for (const match of matches) {
-    const home = stats.get(match.playerAId)
-    const away = stats.get(match.playerBId)
+  for (const lobby of lobbies) {
+    const home = stats.get(lobby.playerAId)
+    const away = stats.get(lobby.playerBId)
     if (!home || !away || home.playerId === away.playerId) continue
+    if (lobby.scoreA === lobby.scoreB) continue
 
     home.played += 1
     away.played += 1
-    home.roundsFor += match.scoreA
-    home.roundsAgainst += match.scoreB
-    away.roundsFor += match.scoreB
-    away.roundsAgainst += match.scoreA
+    home.roundsFor += lobby.scoreA
+    home.roundsAgainst += lobby.scoreB
+    away.roundsFor += lobby.scoreB
+    away.roundsAgainst += lobby.scoreA
 
-    if (match.scoreA > match.scoreB) {
+    if (lobby.scoreA > lobby.scoreB) {
       home.wins += 1
-      home.points += POINTS_WIN
+      home.points += POINTS_LOBBY
       away.losses += 1
-    } else if (match.scoreA < match.scoreB) {
-      away.wins += 1
-      away.points += POINTS_WIN
-      home.losses += 1
     } else {
-      home.draws += 1
-      away.draws += 1
-      home.points += POINTS_DRAW
-      away.points += POINTS_DRAW
+      away.wins += 1
+      away.points += POINTS_LOBBY
+      home.losses += 1
     }
   }
 
@@ -151,7 +146,7 @@ export function computeStandings(
     const position = index + 1
     const lastPosition = end
     const zone =
-      matchesPlayed === 0
+      lobbiesPlayed === 0
         ? "none"
         : zoneForRange(
             position,

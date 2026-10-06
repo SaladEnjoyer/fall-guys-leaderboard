@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { scoreError, serverLabel } from "./rules.ts"
+import { scoreError } from "./rules.ts"
 
 test("first to 5 with a two-round lead is a finished match", () => {
   assert.equal(scoreError(5, 3), null)
@@ -36,9 +36,4 @@ test("a tied score names both ways to close it", () => {
 test("a score that continued after the match was over is rejected", () => {
   assert.match(scoreError(6, 3) ?? "", /past the finish/)
   assert.match(scoreError(8, 4) ?? "", /past the finish/)
-})
-
-test("server labels spell out who hosts each lobby", () => {
-  assert.equal(serverLabel("split"), "L2 on away · Lobby 2 on home")
-  assert.equal(serverLabel("same"), "Same server · both lobbies")
 })

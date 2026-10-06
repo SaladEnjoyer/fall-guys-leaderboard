@@ -7,7 +7,7 @@ import {
   setAdminCookie,
 } from "@/lib/auth"
 import { actionMessage, mutateBoard } from "@/lib/store"
-import type { AdminAction, ServerSetup } from "@/lib/types"
+import type { AdminAction } from "@/lib/types"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -21,34 +21,50 @@ function whole(form: FormData, key: string) {
   return Number(text(form, key))
 }
 
-function serversOf(form: FormData): ServerSetup {
-  return text(form, "servers") === "same" ? "same" : "split"
-}
-
 function actionFromForm(form: FormData): AdminAction {
   const intent = text(form, "intent")
   const leagueId = text(form, "leagueId")
 
   switch (intent) {
     case "add-player":
-      return { type: "add-player", leagueId, name: text(form, "name") }
+      return {
+        type: "add-player",
+        leagueId,
+        name: text(form, "name"),
+        server: text(form, "server"),
+      }
     case "rename-player":
       return {
         type: "rename-player",
         playerId: text(form, "playerId"),
         name: text(form, "name"),
+        server: text(form, "server"),
       }
     case "remove-player":
       return { type: "remove-player", playerId: text(form, "playerId") }
-    case "add-match":
+    case "generate-fixtures":
+      return { type: "generate-fixtures", leagueId }
+    case "schedule-releases":
       return {
-        type: "add-match",
+        type: "schedule-releases",
         leagueId,
-        playerAId: text(form, "playerAId"),
-        playerBId: text(form, "playerBId"),
-        scoreA: whole(form, "scoreA"),
-        scoreB: whole(form, "scoreB"),
-        servers: serversOf(form),
+        firstMinutes: whole(form, "firstMinutes"),
+        everyMinutes: whole(form, "everyMinutes"),
+      }
+    case "clear-schedule":
+      return { type: "clear-schedule", leagueId }
+    case "release-match":
+      return { type: "release-match", matchId: text(form, "matchId") }
+    case "record-result":
+      return {
+        type: "record-result",
+        matchId: text(form, "matchId"),
+        lobby1Server: text(form, "lobby1Server"),
+        lobby2Server: text(form, "lobby2Server"),
+        lobby1ScoreA: whole(form, "lobby1ScoreA"),
+        lobby1ScoreB: whole(form, "lobby1ScoreB"),
+        lobby2ScoreA: whole(form, "lobby2ScoreA"),
+        lobby2ScoreB: whole(form, "lobby2ScoreB"),
       }
     case "remove-match":
       return { type: "remove-match", matchId: text(form, "matchId") }
@@ -81,13 +97,17 @@ function desk(request: NextRequest, leagueId: string, query: Record<string, stri
 
 const saved: Record<string, string> = {
   "add-player": "Player added.",
-  "rename-player": "Name updated.",
-  "remove-player": "Player removed. Their matches were deleted.",
-  "add-match": "Match saved. The table is updated.",
-  "remove-match": "Match deleted. The table was recalculated.",
+  "rename-player": "Player updated.",
+  "remove-player": "Player removed. Their matchups were deleted.",
+  "generate-fixtures": "Matchups created. They stay hidden until you release them.",
+  "schedule-releases": "Timer set. Each hidden matchup will appear on its own.",
+  "clear-schedule": "Timer cleared. Hidden matchups stay hidden.",
+  "release-match": "Matchup released.",
+  "record-result": "Result saved. The table is updated.",
+  "remove-match": "Matchup deleted. The table was recalculated.",
   "update-zones": "Cuts updated.",
   "rename-league": "League renamed.",
-  "reset-matches": "Matches in this league were reset.",
+  "reset-matches": "Matchups in this league were reset.",
 }
 
 export async function POST(request: NextRequest) {
@@ -119,9 +139,10 @@ export async function POST(request: NextRequest) {
     await mutateBoard(action)
     return desk(request, leagueId, { notice: saved[action.type] ?? "Saved." })
   } catch (error) {
-    const message = error instanceof Error && error.message === "That action was not recognized."
-      ? error.message
-      : actionMessage(error)
+    const message =
+      error instanceof Error && error.message === "That action was not recognized."
+        ? error.message
+        : actionMessage(error)
     return desk(request, leagueId, { error: message })
   }
 }

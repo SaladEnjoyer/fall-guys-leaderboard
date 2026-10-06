@@ -1,6 +1,6 @@
-import { isServerSetup } from "@/lib/rules"
+import { fixtureIsVisible } from "@/lib/fixtures"
 import { computeStandings, describeZones } from "@/lib/standings"
-import type { Board, LeagueState, MatchView } from "@/lib/types"
+import type { Board, LeagueState, Lobby, MatchView } from "@/lib/types"
 
 function displayName(
   playerId: string,
@@ -10,11 +10,27 @@ function displayName(
   return names.get(playerId) ?? snapshot
 }
 
-export function buildBoard(state: LeagueState): Board {
+function scoredLobby(lobby: Lobby) {
+  return (
+    lobby.scoreA != null &&
+    lobby.scoreB != null &&
+    lobby.scoreA !== lobby.scoreB
+  )
+}
+
+function lobbyWins(lobby: Lobby, side: "A" | "B") {
+  if (lobby.scoreA == null || lobby.scoreB == null || lobby.scoreA === lobby.scoreB) {
+    return 0
+  }
+  const winner = lobby.scoreA > lobby.scoreB ? "A" : "B"
+  return winner === side ? 1 : 0
+}
+
+export function buildBoard(state: LeagueState, now = Date.now()): Board {
   const names = new Map(state.players.map((player) => [player.id, player.name]))
 
   return {
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(now).toISOString(),
     leagues: state.leagues.map((league) => {
       const players = state.players
         .filter((player) => player.leagueId === league.id)
@@ -23,24 +39,44 @@ export function buildBoard(state: LeagueState): Board {
         )
       const matches = state.matches
         .filter((match) => match.leagueId === league.id)
-        .sort((a, b) => (a.playedAt < b.playedAt ? 1 : -1))
+        .sort((a, b) => {
+          const aPlayed = a.playedAt ? 1 : 0
+          const bPlayed = b.playedAt ? 1 : 0
+          if (aPlayed !== bPlayed) return bPlayed - aPlayed
+          if (a.playedAt && b.playedAt && a.playedAt !== b.playedAt) {
+            return a.playedAt < b.playedAt ? 1 : -1
+          }
+          const aTime = a.releaseAt ?? a.createdAt
+          const bTime = b.releaseAt ?? b.createdAt
+          if (aTime !== bTime) return aTime < bTime ? -1 : 1
+          return a.id < b.id ? -1 : 1
+        })
+
+      const lobbies = matches.flatMap((match) => {
+        const played = [match.lobby1, match.lobby2].filter(scoredLobby)
+        return played.map((lobby) => ({
+          playerAId: match.playerAId,
+          playerBId: match.playerBId,
+          scoreA: lobby.scoreA as number,
+          scoreB: lobby.scoreB as number,
+        }))
+      })
 
       const matchViews: MatchView[] = matches.map((match) => ({
         id: match.id,
+        createdAt: match.createdAt,
+        releaseAt: match.releaseAt,
+        released: match.released,
         playedAt: match.playedAt,
+        hidden: !fixtureIsVisible(match, now),
         playerAId: match.playerAId,
         playerBId: match.playerBId,
         playerAName: displayName(match.playerAId, match.playerAName, names),
         playerBName: displayName(match.playerBId, match.playerBName, names),
-        scoreA: match.scoreA,
-        scoreB: match.scoreB,
-        servers: isServerSetup(match.servers) ? match.servers : "split",
-        result:
-          match.scoreA === match.scoreB
-            ? "draw"
-            : match.scoreA > match.scoreB
-              ? "A"
-              : "B",
+        lobby1: match.lobby1,
+        lobby2: match.lobby2,
+        lobbyWinsA: lobbyWins(match.lobby1, "A") + lobbyWins(match.lobby2, "A"),
+        lobbyWinsB: lobbyWins(match.lobby1, "B") + lobbyWins(match.lobby2, "B"),
       }))
 
       return {
@@ -56,13 +92,17 @@ export function buildBoard(state: LeagueState): Board {
         zonesOverlap:
           players.length > 0 &&
           league.promotionSlots + league.relegationSlots > players.length,
-        players: players.map((player) => ({ id: player.id, name: player.name })),
+        players: players.map((player) => ({
+          id: player.id,
+          name: player.name,
+          server: player.server,
+        })),
         standings: computeStandings(
           players,
-          matches,
+          lobbies,
           league.promotionSlots,
           league.relegationSlots,
-          matches.length,
+          lobbies.length,
         ),
         matches: matchViews,
       }

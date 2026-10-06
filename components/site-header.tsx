@@ -6,7 +6,7 @@ import { cn } from "cn"
 
 const links = [
   { href: "/", label: "Tables" },
-  { href: "/admin", label: "Add result" },
+  { href: "/admin", label: "League desk" },
 ]
 
 export function SiteHeader() {

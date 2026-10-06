@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge"
-import { ACCENT_STYLES, ZONE_LABEL, formatDiff, formatWhen } from "@/lib/format"
-import { serverLabel } from "@/lib/rules"
-import type { LeagueView, Zone } from "@/lib/types"
+import { ACCENT_STYLES, ZONE_LABEL, formatDiff, formatWhen, lobbyText } from "@/lib/format"
+import type { LeagueView, MatchView, Zone } from "@/lib/types"
 import { cn } from "cn"
 
 const zoneRow: Record<Zone, string> = {
@@ -24,8 +23,18 @@ function countLabel(count: number, singular: string, plural: string) {
   return `${count} ${count === 1 ? singular : plural}`
 }
 
+function sideClass(match: MatchView, side: "A" | "B") {
+  const wins = side === "A" ? match.lobbyWinsA : match.lobbyWinsB
+  const other = side === "A" ? match.lobbyWinsB : match.lobbyWinsA
+  if (!match.playedAt || wins === other) return "text-[#6d5a86]"
+  return wins > other ? "font-bold text-[#2b1848]" : "text-[#6d5a86]"
+}
+
 export function LeagueTable({ league }: { league: LeagueView }) {
   const accent = ACCENT_STYLES[league.accent]
+  const visible = league.matches.filter((match) => !match.hidden)
+  const results = visible.filter((match) => match.playedAt)
+  const upcoming = visible.filter((match) => !match.playedAt)
 
   return (
     <section id={league.id} className="scroll-mt-24 overflow-hidden rounded-3xl bg-white shadow-[0_8px_0_rgba(43,24,72,0.06)] ring-1 ring-[#2b1848]/10">
@@ -37,17 +46,17 @@ export function LeagueTable({ league }: { league: LeagueView }) {
         </div>
         <p className="text-sm font-medium text-[#6d5a86]">
           {countLabel(league.players.length, "player", "players")} ·{" "}
-          {countLabel(league.matches.length, "match", "matches")}
+          {countLabel(results.length, "result", "results")}
         </p>
       </div>
 
       {league.players.length === 0 ? (
         <p className="px-4 pb-5 text-sm text-[#6d5a86] sm:px-5">
-          This league has no players yet. Add them from Add result.
+          This league has no players yet. Add them from League desk.
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
+          <table className="w-full min-w-[680px] border-collapse text-sm">
             <caption className="sr-only">
               {league.name} standings. {league.zoneSummary}.
             </caption>
@@ -55,10 +64,9 @@ export function LeagueTable({ league }: { league: LeagueView }) {
               <tr className="text-left text-xs tracking-wide text-[#6d5a86] uppercase">
                 <th className="px-4 py-2 font-semibold sm:px-5">Pos</th>
                 <th className="px-2 py-2 font-semibold">Player</th>
-                <th className="px-2 py-2 text-center font-semibold" title="Matches played">MP</th>
-                <th className="px-2 py-2 text-center font-semibold" title="Wins">W</th>
-                <th className="px-2 py-2 text-center font-semibold" title="Draws">D</th>
-                <th className="px-2 py-2 text-center font-semibold" title="Losses">L</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Lobbies played">MP</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Lobby wins">W</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Lobby losses">L</th>
                 <th className="px-2 py-2 text-center font-semibold" title="Rounds for">RF</th>
                 <th className="px-2 py-2 text-center font-semibold" title="Rounds against">RA</th>
                 <th className="px-2 py-2 text-center font-semibold" title="Round difference">RD</th>
@@ -72,10 +80,14 @@ export function LeagueTable({ league }: { league: LeagueView }) {
                   <td className="px-4 py-3 font-heading text-base text-[#2b1848] sm:px-5">
                     {row.position}
                   </td>
-                  <td className="px-2 py-3 font-semibold text-[#2b1848]">{row.name}</td>
+                  <td className="px-2 py-3">
+                    <span className="font-semibold text-[#2b1848]">{row.name}</span>
+                    {row.server ? (
+                      <span className="ml-2 text-xs font-medium text-[#6d5a86]">{row.server}</span>
+                    ) : null}
+                  </td>
                   <td className="px-2 py-3 text-center tabular-nums">{row.played}</td>
                   <td className="px-2 py-3 text-center tabular-nums">{row.wins}</td>
-                  <td className="px-2 py-3 text-center tabular-nums">{row.draws}</td>
                   <td className="px-2 py-3 text-center tabular-nums">{row.losses}</td>
                   <td className="px-2 py-3 text-center tabular-nums">{row.roundsFor}</td>
                   <td className="px-2 py-3 text-center tabular-nums">{row.roundsAgainst}</td>
@@ -110,35 +122,53 @@ export function LeagueTable({ league }: { league: LeagueView }) {
       </div>
 
       <div className="border-t border-[#2b1848]/8 px-4 py-4 sm:px-5">
-        <h3 className="font-heading text-lg text-[#2b1848]">Recent matches</h3>
-        {league.matches.length === 0 ? (
+        <h3 className="font-heading text-lg text-[#2b1848]">Recent results</h3>
+        {results.length === 0 ? (
           <p className="mt-2 text-sm text-[#6d5a86]">No results in this league yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {league.matches.slice(0, 8).map((match) => (
+            {results.slice(0, 8).map((match) => (
               <li key={match.id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
                 <p>
-                  <span className={match.result === "A" ? "font-bold text-[#2b1848]" : "text-[#6d5a86]"}>
-                    {match.playerAName}
-                  </span>{" "}
-                  <span className="text-xs text-[#6d5a86]">home</span>{" "}
-                  <span className="font-heading text-base tabular-nums text-[#2b1848]">
-                    {match.scoreA}–{match.scoreB}
-                  </span>{" "}
-                  <span className={match.result === "B" ? "font-bold text-[#2b1848]" : "text-[#6d5a86]"}>
-                    {match.playerBName}
-                  </span>{" "}
-                  <span className="text-xs text-[#6d5a86]">away</span>
-                  <span className="mt-1 block text-xs text-[#6d5a86]">{serverLabel(match.servers)}</span>
+                  <span className={sideClass(match, "A")}>{match.playerAName}</span>
+                  {" "}
+                  <span className="font-heading text-base text-[#2b1848]">
+                    {lobbyText("L1", match.lobby1)} · {lobbyText("L2", match.lobby2)}
+                  </span>
+                  {" "}
+                  <span className={sideClass(match, "B")}>{match.playerBName}</span>
                 </p>
-                <time className="text-xs text-[#6d5a86]" dateTime={match.playedAt}>
-                  {formatWhen(match.playedAt)}
-                </time>
+                {match.playedAt ? (
+                  <time className="text-xs text-[#6d5a86]" dateTime={match.playedAt}>
+                    {formatWhen(match.playedAt)}
+                  </time>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {upcoming.length > 0 ? (
+        <div className="border-t border-[#2b1848]/8 px-4 py-4 sm:px-5">
+          <h3 className="font-heading text-lg text-[#2b1848]">Coming up</h3>
+          <ul className="mt-3 space-y-2">
+            {upcoming.map((match) => (
+              <li key={match.id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                <p>
+                  <span className="font-semibold text-[#2b1848]">{match.playerAName}</span>
+                  {" vs "}
+                  <span className="font-semibold text-[#2b1848]">{match.playerBName}</span>
+                  <span className="mt-1 block text-xs text-[#6d5a86]">
+                    {lobbyText("L1", match.lobby1)} · {lobbyText("L2", match.lobby2)}
+                  </span>
+                </p>
+                <span className="text-xs text-[#6d5a86]">Released</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   )
 }

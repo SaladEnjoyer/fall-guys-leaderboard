@@ -1,15 +1,3 @@
-type ServerSetup = "split" | "same"
-
-export function isServerSetup(value: unknown): value is ServerSetup {
-  return value === "split" || value === "same"
-}
-
-export function serverLabel(setup: ServerSetup) {
-  return setup === "same"
-    ? "Same server · both lobbies"
-    : "L2 on away · Lobby 2 on home"
-}
-
 export function scoreError(scoreA: number, scoreB: number) {
   if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB)) {
     return "Rounds have to be a whole number from 0 to 30."
