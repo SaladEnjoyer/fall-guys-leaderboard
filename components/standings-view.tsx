@@ -16,11 +16,6 @@ export function StandingsView({ board }: { board: Board }) {
           Live
         </p>
         <h1 className="mt-1 font-heading text-3xl text-[#2b1848] sm:text-4xl">Standings</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6d5a86] sm:text-base">
-          Win 3 points, loss 0. Tied on points, round difference comes first, then
-          rounds won. Promotion and relegation spots are marked, and you can change
-          them whenever you decide.
-        </p>
       </div>
       <MatchFormat />
       <nav className="sticky top-3 z-20 flex flex-wrap gap-2 rounded-2xl bg-white/90 p-2 shadow-[0_6px_0_rgba(43,24,72,0.05)] ring-1 ring-[#2b1848]/10 backdrop-blur">
