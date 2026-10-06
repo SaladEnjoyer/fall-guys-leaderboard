@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { buildBoard } from "@/lib/board"
 import { createInitialState } from "@/lib/defaults"
-import { fixtureIsVisible, missingPairs } from "@/lib/fixtures"
+import { ROUND_LENGTH_MS, matchPhase, roundsStillNeeded } from "@/lib/fixtures"
 import { scoreError } from "@/lib/rules"
 import type {
   AdminAction,
@@ -117,17 +117,34 @@ function normalize(raw: unknown): LeagueState {
         const complete = lobby1.scoreA != null && lobby2.scoreA != null
         const createdAt =
           typeof item.createdAt === "string" ? item.createdAt : new Date(0).toISOString()
+        const opensAt =
+          typeof item.opensAt === "string"
+            ? item.opensAt
+            : typeof item.releaseAt === "string"
+              ? item.releaseAt
+              : createdAt
+        const deadlineAt =
+          typeof item.deadlineAt === "string"
+            ? item.deadlineAt
+            : new Date(Date.parse(opensAt) + ROUND_LENGTH_MS).toISOString()
+        const round =
+          typeof item.round === "number" && Number.isInteger(item.round) && item.round > 0
+            ? item.round
+            : 1
         const match: Match = {
           id: item.id,
           leagueId: item.leagueId,
+          round,
           playerAId: item.playerAId,
           playerBId: item.playerBId,
           playerAName: typeof item.playerAName === "string" ? item.playerAName : home?.name ?? "Player",
           playerBName: typeof item.playerBName === "string" ? item.playerBName : away?.name ?? "Player",
           lobby1,
           lobby2,
-          releaseAt: typeof item.releaseAt === "string" ? item.releaseAt : null,
-          released: item.released === true || complete,
+          opensAt,
+          deadlineAt,
+          releaseAt: opensAt,
+          released: Date.parse(opensAt) <= Date.now(),
           playedAt:
             typeof item.playedAt === "string" ? item.playedAt : complete ? createdAt : null,
           createdAt,
@@ -187,13 +204,6 @@ function cleanServer(value: unknown) {
 function requireSlot(value: unknown, label: string) {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 12) {
     throw new ActionError(400, `${label} has to be a whole number from 0 to 12.`)
-  }
-  return value
-}
-
-function requireMinutes(value: unknown, label: string) {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 10080) {
-    throw new ActionError(400, `${label} has to be a whole number of minutes from 0 to 10080.`)
   }
   return value
 }
@@ -276,78 +286,71 @@ function applyAction(state: LeagueState, action: AdminAction) {
         throw new ActionError(400, "Every player needs a server before matchups can be created.")
       }
       const existing = state.matches.filter((match) => match.leagueId === league.id)
-      const pairs = missingPairs(players.map((player) => player.id), existing)
-      if (pairs.length === 0) {
+      const rounds = roundsStillNeeded(players.map((player) => player.id), existing)
+      if (rounds.length === 0) {
         throw new ActionError(400, "Everyone in this league already has a matchup.")
       }
       const byId = new Map(players.map((player) => [player.id, player]))
-      const started = Date.now()
-      pairs.forEach(([leftId, rightId], index) => {
-        const left = byId.get(leftId)
-        const right = byId.get(rightId)
-        if (!left || !right) return
-        state.matches.push({
-          id: randomUUID(),
-          leagueId: league.id,
-          playerAId: left.id,
-          playerBId: right.id,
-          playerAName: left.name,
-          playerBName: right.name,
-          lobby1: { scoreA: null, scoreB: null, server: left.server },
-          lobby2: { scoreA: null, scoreB: null, server: right.server },
-          releaseAt: null,
-          released: false,
-          playedAt: null,
-          createdAt: new Date(started + index).toISOString(),
+      const maxRound = existing.reduce((max, match) => Math.max(max, match.round), 0)
+      const latestDeadline = existing.reduce((max, match) => {
+        const at = Date.parse(match.deadlineAt)
+        return Number.isFinite(at) ? Math.max(max, at) : max
+      }, 0)
+      const start = existing.length === 0 ? Date.now() : Math.max(Date.now(), latestDeadline)
+      let created = 0
+      rounds.forEach((pairs, index) => {
+        const opens = start + index * ROUND_LENGTH_MS
+        const deadline = opens + ROUND_LENGTH_MS
+        pairs.forEach(([leftId, rightId]) => {
+          const left = byId.get(leftId)
+          const right = byId.get(rightId)
+          if (!left || !right) return
+          state.matches.push({
+            id: randomUUID(),
+            leagueId: league.id,
+            round: maxRound + index + 1,
+            playerAId: left.id,
+            playerBId: right.id,
+            playerAName: left.name,
+            playerBName: right.name,
+            lobby1: { scoreA: null, scoreB: null, server: left.server },
+            lobby2: { scoreA: null, scoreB: null, server: right.server },
+            opensAt: new Date(opens).toISOString(),
+            deadlineAt: new Date(deadline).toISOString(),
+            releaseAt: new Date(opens).toISOString(),
+            released: opens <= Date.now(),
+            playedAt: null,
+            createdAt: new Date(start + created).toISOString(),
+          })
+          created += 1
         })
       })
       return
     }
-    case "schedule-releases": {
-      const league = requireLeague(state, action.leagueId)
-      const firstMinutes = requireMinutes(action.firstMinutes, "The first release")
-      const everyMinutes = requireMinutes(action.everyMinutes, "The gap between releases")
-      const now = Date.now()
-      const pending = state.matches
-        .filter(
-          (match) => match.leagueId === league.id && !fixtureIsVisible(match, now) && !match.playedAt,
-        )
-        .sort((a, b) => {
-          if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1
-          return a.id < b.id ? -1 : 1
-        })
-      if (pending.length === 0) {
-        throw new ActionError(400, "There are no hidden matchups to schedule.")
-      }
-      pending.forEach((match, index) => {
-        const minutes = firstMinutes + index * everyMinutes
-        match.releaseAt = new Date(now + minutes * 60_000).toISOString()
-        match.released = false
-      })
-      return
-    }
-    case "clear-schedule": {
-      const league = requireLeague(state, action.leagueId)
-      const now = Date.now()
-      let cleared = 0
-      for (const match of state.matches) {
-        if (match.leagueId !== league.id || match.playedAt || !match.releaseAt) continue
-        if (fixtureIsVisible(match, now)) continue
-        match.releaseAt = null
-        cleared += 1
-      }
-      if (cleared === 0) throw new ActionError(400, "There is no timer to clear.")
-      return
-    }
-    case "release-match": {
+    case "award-forfeit": {
       const match = state.matches.find((item) => item.id === action.matchId)
       if (!match) throw new ActionError(400, "That matchup is already gone.")
+      if (match.playedAt) throw new ActionError(400, "That matchup is already closed.")
+      if (matchPhase(match, Date.now()) !== "forfeit") {
+        throw new ActionError(400, "This matchup still has time left.")
+      }
+      const winnerIsA = action.winnerId === match.playerAId
+      const winnerIsB = action.winnerId === match.playerBId
+      if (!winnerIsA && !winnerIsB) throw new ActionError(400, "Pick one of the two players.")
+      const scoreA = winnerIsA ? 5 : 0
+      const scoreB = winnerIsA ? 0 : 5
+      match.lobby1 = { ...match.lobby1, scoreA, scoreB }
+      match.lobby2 = { ...match.lobby2, scoreA, scoreB }
+      match.playedAt = new Date().toISOString()
       match.released = true
       return
     }
     case "record-result": {
       const match = state.matches.find((item) => item.id === action.matchId)
       if (!match) throw new ActionError(400, "That matchup is already gone.")
+      if (matchPhase(match, Date.now()) === "upcoming") {
+        throw new ActionError(400, "This round is not out yet.")
+      }
       applyLobbyScore("Lobby 1", action.lobby1ScoreA, action.lobby1ScoreB)
       applyLobbyScore("Lobby 2", action.lobby2ScoreA, action.lobby2ScoreB)
       match.lobby1 = {

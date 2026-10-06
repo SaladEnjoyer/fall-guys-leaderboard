@@ -1,4 +1,4 @@
-import { fixtureIsVisible } from "@/lib/fixtures"
+import { matchPhase } from "@/lib/fixtures"
 import { computeStandings, describeZones } from "@/lib/standings"
 import type { Board, LeagueState, Lobby, MatchView } from "@/lib/types"
 
@@ -40,16 +40,11 @@ export function buildBoard(state: LeagueState, now = Date.now()): Board {
       const matches = state.matches
         .filter((match) => match.leagueId === league.id)
         .sort((a, b) => {
-          const aPlayed = a.playedAt ? 1 : 0
-          const bPlayed = b.playedAt ? 1 : 0
-          if (aPlayed !== bPlayed) return bPlayed - aPlayed
+          if (a.round !== b.round) return a.round - b.round
           if (a.playedAt && b.playedAt && a.playedAt !== b.playedAt) {
             return a.playedAt < b.playedAt ? 1 : -1
           }
-          const aTime = a.releaseAt ?? a.createdAt
-          const bTime = b.releaseAt ?? b.createdAt
-          if (aTime !== bTime) return aTime < bTime ? -1 : 1
-          return a.id < b.id ? -1 : 1
+          return a.playerAName.localeCompare(b.playerAName, "en", { sensitivity: "base" })
         })
 
       const lobbies = matches.flatMap((match) => {
@@ -62,22 +57,29 @@ export function buildBoard(state: LeagueState, now = Date.now()): Board {
         }))
       })
 
-      const matchViews: MatchView[] = matches.map((match) => ({
-        id: match.id,
-        createdAt: match.createdAt,
-        releaseAt: match.releaseAt,
-        released: match.released,
-        playedAt: match.playedAt,
-        hidden: !fixtureIsVisible(match, now),
-        playerAId: match.playerAId,
-        playerBId: match.playerBId,
-        playerAName: displayName(match.playerAId, match.playerAName, names),
-        playerBName: displayName(match.playerBId, match.playerBName, names),
-        lobby1: match.lobby1,
-        lobby2: match.lobby2,
-        lobbyWinsA: lobbyWins(match.lobby1, "A") + lobbyWins(match.lobby2, "A"),
-        lobbyWinsB: lobbyWins(match.lobby1, "B") + lobbyWins(match.lobby2, "B"),
-      }))
+      const matchViews: MatchView[] = matches.map((match) => {
+        const phase = matchPhase(match, now)
+        return {
+          id: match.id,
+          round: match.round,
+          createdAt: match.createdAt,
+          opensAt: match.opensAt,
+          deadlineAt: match.deadlineAt,
+          releaseAt: match.releaseAt,
+          released: phase === "active" || phase === "closed" || phase === "forfeit",
+          playedAt: match.playedAt,
+          phase,
+          hidden: phase === "upcoming" || phase === "forfeit",
+          playerAId: match.playerAId,
+          playerBId: match.playerBId,
+          playerAName: displayName(match.playerAId, match.playerAName, names),
+          playerBName: displayName(match.playerBId, match.playerBName, names),
+          lobby1: match.lobby1,
+          lobby2: match.lobby2,
+          lobbyWinsA: lobbyWins(match.lobby1, "A") + lobbyWins(match.lobby2, "A"),
+          lobbyWinsB: lobbyWins(match.lobby1, "B") + lobbyWins(match.lobby2, "B"),
+        }
+      })
 
       return {
         id: league.id,

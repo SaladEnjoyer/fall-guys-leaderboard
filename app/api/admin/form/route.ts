@@ -44,17 +44,12 @@ function actionFromForm(form: FormData): AdminAction {
       return { type: "remove-player", playerId: text(form, "playerId") }
     case "generate-fixtures":
       return { type: "generate-fixtures", leagueId }
-    case "schedule-releases":
+    case "award-forfeit":
       return {
-        type: "schedule-releases",
-        leagueId,
-        firstMinutes: whole(form, "firstMinutes"),
-        everyMinutes: whole(form, "everyMinutes"),
+        type: "award-forfeit",
+        matchId: text(form, "matchId"),
+        winnerId: text(form, "winnerId"),
       }
-    case "clear-schedule":
-      return { type: "clear-schedule", leagueId }
-    case "release-match":
-      return { type: "release-match", matchId: text(form, "matchId") }
     case "record-result":
       return {
         type: "record-result",
@@ -99,11 +94,9 @@ const saved: Record<string, string> = {
   "add-player": "Player added.",
   "rename-player": "Player updated.",
   "remove-player": "Player removed. Their matchups were deleted.",
-  "generate-fixtures": "Matchups created. They stay hidden until you release them.",
-  "schedule-releases": "Timer set. Each hidden matchup will appear on its own.",
-  "clear-schedule": "Timer cleared. Hidden matchups stay hidden.",
-  "release-match": "Matchup released.",
-  "record-result": "Result saved. The table is updated.",
+  "generate-fixtures": "This round is live. Everyone can see their opponent.",
+  "award-forfeit": "5–0, 5–0 saved. The table is updated.",
+  "record-result": "Match closed. The table is updated.",
   "remove-match": "Matchup deleted. The table was recalculated.",
   "update-zones": "Cuts updated.",
   "rename-league": "League renamed.",

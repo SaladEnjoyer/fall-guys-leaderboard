@@ -4,7 +4,9 @@ Public scoreboard for five separate leagues. Anyone can view the standings. Only
 
 ## Players and matchups
 
-Each player has a name and a server, such as EU or NA. From the league desk, **Create matchups** builds a round robin: every player meets every other player once. An odd number of players gets a bye each round, so nobody is left without a full set of opponents.
+Each player has a name and a server, such as EU or NA. **Create matchups** builds the season: every player meets every other player once, one opponent at a time. An odd number of players gets a bye each round.
+
+Round 1 is public immediately. Pick a league on the tables page to see who plays who. Each round stays up for 3 days, then the next pairs come out on their own.
 
 A pairing is two lobbies.
 
@@ -12,7 +14,7 @@ A pairing is two lobbies.
 - Lobby 2 starts on the second player’s server.
 - Either lobby server can be changed when you enter the result.
 
-New matchups stay hidden. Set a timer (first one in N minutes, then every M minutes) or press **Release now** on a single matchup. The public page shows a matchup once it is released, once its timer is due, or once it has a result.
+On the league desk, enter the scores and press **Save and close**. The table updates from that result. If a matchup still has no score when the 3 days end, it leaves the public page. It stays on the desk so you can give one player 5–0, 5–0 in both lobbies, or type the real scores. Later rounds stay on the desk until their day arrives.
 
 ## Match format
 

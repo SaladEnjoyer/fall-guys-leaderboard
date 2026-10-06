@@ -25,12 +25,15 @@ export type Lobby = {
 export type Match = {
   id: string
   leagueId: string
+  round: number
   playerAId: string
   playerBId: string
   playerAName: string
   playerBName: string
   lobby1: Lobby
   lobby2: Lobby
+  opensAt: string
+  deadlineAt: string
   releaseAt: string | null
   released: boolean
   playedAt: string | null
@@ -66,12 +69,18 @@ export type LobbyView = {
   server: string
 }
 
+export type MatchPhase = "upcoming" | "active" | "forfeit" | "closed"
+
 export type MatchView = {
   id: string
+  round: number
   createdAt: string
+  opensAt: string
+  deadlineAt: string
   releaseAt: string | null
   released: boolean
   playedAt: string | null
+  phase: MatchPhase
   hidden: boolean
   playerAId: string
   playerBId: string
@@ -106,14 +115,7 @@ export type AdminAction =
   | { type: "rename-player"; playerId: string; name: string; server: string }
   | { type: "remove-player"; playerId: string }
   | { type: "generate-fixtures"; leagueId: string }
-  | {
-      type: "schedule-releases"
-      leagueId: string
-      firstMinutes: number
-      everyMinutes: number
-    }
-  | { type: "clear-schedule"; leagueId: string }
-  | { type: "release-match"; matchId: string }
+  | { type: "award-forfeit"; matchId: string; winnerId: string }
   | {
       type: "record-result"
       matchId: string

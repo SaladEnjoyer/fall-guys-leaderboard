@@ -25,15 +25,28 @@ export function lobbyText(
   return `${label} ${server} ${lobby.scoreA}–${lobby.scoreB}`
 }
 
-export function releaseStatus(match: {
-  hidden: boolean
+export function closesLabel(iso: string, now = Date.now()) {
+  const at = Date.parse(iso)
+  if (!Number.isFinite(at)) return ""
+  const diff = at - now
+  if (diff <= 0) return `Closed ${formatWhen(iso)}`
+  const days = Math.ceil(diff / (24 * 60 * 60 * 1000))
+  if (days > 1) return `Closes in ${days} days · ${formatWhen(iso)}`
+  const hours = Math.max(1, Math.ceil(diff / (60 * 60 * 1000)))
+  if (hours >= 24) return `Closes in 1 day · ${formatWhen(iso)}`
+  return `Closes in ${hours} hour${hours === 1 ? "" : "s"} · ${formatWhen(iso)}`
+}
+
+export function phaseLabel(match: {
+  phase: "upcoming" | "active" | "forfeit" | "closed"
+  opensAt: string
+  deadlineAt: string
   playedAt: string | null
-  releaseAt: string | null
 }) {
-  if (match.playedAt) return `Played ${formatWhen(match.playedAt)}`
-  if (!match.hidden) return "Released"
-  if (match.releaseAt) return `Releases ${formatWhen(match.releaseAt)}`
-  return "Hidden"
+  if (match.phase === "closed" && match.playedAt) return `Closed ${formatWhen(match.playedAt)}`
+  if (match.phase === "active") return closesLabel(match.deadlineAt)
+  if (match.phase === "forfeit") return "No score in 3 days"
+  return `Opens ${formatWhen(match.opensAt)}`
 }
 
 export const ACCENT_STYLES = {

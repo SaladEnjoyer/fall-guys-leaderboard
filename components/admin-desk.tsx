@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { LeagueTable } from "@/components/league-table"
 import { MatchFormat } from "@/components/match-format"
-import { ACCENT_STYLES, lobbyText, releaseStatus } from "@/lib/format"
+import { ACCENT_STYLES, lobbyText, phaseLabel } from "@/lib/format"
 import type { Board, MatchView } from "@/lib/types"
 import { cn } from "cn"
 
@@ -54,7 +54,10 @@ export function AdminDesk({
 
   const league = board.leagues.find((item) => item.id === leagueId) ?? board.leagues[0]
   const missingServer = league.players.filter((player) => !player.server)
-  const hidden = league.matches.filter((match) => match.hidden)
+  const needsDecision = league.matches.filter((match) => match.phase === "forfeit")
+  const active = league.matches.filter((match) => match.phase === "active")
+  const upcoming = league.matches.filter((match) => match.phase === "upcoming")
+  const closed = league.matches.filter((match) => match.phase === "closed")
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6">
@@ -62,8 +65,9 @@ export function AdminDesk({
         <div>
           <h1 className="font-heading text-3xl text-[#2b1848] sm:text-4xl">League desk</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6d5a86]">
-            Add every player with a name and a server. The desk builds the matchups,
-            and you release each one on a timer or by hand.
+            Add every player with a name and a server. Creating matchups puts one
+            opponent out for each player. You enter the scores and close the match.
+            After 3 days, anything still open comes here so you can give someone 5–0, 5–0.
           </p>
         </div>
         <form method="post" action="/api/admin/form">
@@ -152,8 +156,9 @@ export function AdminDesk({
               <MatchFormat />
             </div>
             <p className="mt-3 text-sm leading-6 text-[#6d5a86]">
-              Creates every pairing in this league. Players who already have a matchup are left as they are.
-              New ones stay hidden until you release them.
+              Builds the whole season. Round 1 goes on the public table now, one matchup
+              per player. Each round lasts 3 days. The next pairs appear on their own
+              when that time is up. Later rounds stay on this desk until then.
             </p>
             <form method="post" action="/api/admin/form" className="mt-4">
               <input type="hidden" name="intent" value="generate-fixtures" />
@@ -161,29 +166,6 @@ export function AdminDesk({
               <button type="submit" className={buttonClass} disabled={league.players.length < 2}>
                 Create matchups
               </button>
-            </form>
-            <form method="post" action="/api/admin/form" className="mt-5 grid gap-3 sm:grid-cols-2">
-              <input type="hidden" name="intent" value="schedule-releases" />
-              <input type="hidden" name="leagueId" value={league.id} />
-              <label className="space-y-2 text-sm font-medium">
-                First one in (minutes)
-                <input name="firstMinutes" type="number" min={0} max={10080} defaultValue={0} required className={inputClass} />
-              </label>
-              <label className="space-y-2 text-sm font-medium">
-                Then every (minutes)
-                <input name="everyMinutes" type="number" min={0} max={10080} defaultValue={30} required className={inputClass} />
-              </label>
-              <p className="text-xs leading-5 text-[#6d5a86] sm:col-span-2">
-                0 releases the first hidden matchup now. Up to 7 days. Only matchups that are still hidden are scheduled.
-              </p>
-              <button type="submit" className={buttonClass} disabled={hidden.length === 0}>
-                Set timer
-              </button>
-            </form>
-            <form method="post" action="/api/admin/form" className="mt-3">
-              <input type="hidden" name="intent" value="clear-schedule" />
-              <input type="hidden" name="leagueId" value={league.id} />
-              <button type="submit" className={quietButtonClass}>Clear timer</button>
             </form>
           </section>
 
@@ -229,31 +211,78 @@ export function AdminDesk({
 
       <LeagueTable league={league} />
 
-      <section className="rounded-3xl bg-white p-5 ring-1 ring-[#2b1848]/10">
-        <h2 className="font-heading text-2xl text-[#2b1848]">Release and results</h2>
-        <p className="mt-1 text-sm leading-6 text-[#6d5a86]">
-          Hidden matchups are only on this page. Saving a result releases that matchup and updates the table.
-          Scores are the first player, then the second.
-        </p>
-        {league.matches.length === 0 ? (
-          <p className="mt-4 text-sm text-[#6d5a86]">No matchups yet.</p>
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {league.matches.map((match) => (
-              <FixtureCard key={match.id} match={match} leagueId={league.id} />
-            ))}
-          </ul>
-        )}
-      </section>
+      {needsDecision.length > 0 ? (
+        <MatchGroup
+          title="Needs a decision"
+          copy="These had no score after 3 days. They are off the public page. Pick who gets 5–0 in both lobbies, or enter the real scores and close it."
+          matches={needsDecision}
+          leagueId={league.id}
+        />
+      ) : null}
+      <MatchGroup
+        title="This round"
+        copy="Enter both lobby scores and close the match. The table updates as soon as you save. Scores are the first player, then the second."
+        matches={active}
+        leagueId={league.id}
+        empty="No matchups are live in this league."
+      />
+      {upcoming.length > 0 ? (
+        <MatchGroup
+          title="Later rounds"
+          copy="Players cannot see these yet. They go public when the current round hits 3 days."
+          matches={upcoming}
+          leagueId={league.id}
+        />
+      ) : null}
+      {closed.length > 0 ? (
+        <MatchGroup
+          title="Closed"
+          copy="These are already on the table. Save again if a score needs a fix."
+          matches={closed}
+          leagueId={league.id}
+        />
+      ) : null}
     </div>
   )
 }
 
-function FixtureCard({ match, leagueId }: { match: MatchView; leagueId: string }) {
+function MatchGroup({
+  title,
+  copy,
+  matches,
+  leagueId,
+  empty,
+}: {
+  title: string
+  copy: string
+  matches: MatchView[]
+  leagueId: string
+  empty?: string
+}) {
   return (
-    <li className={cn("rounded-2xl px-4 py-4 ring-1", match.hidden ? "bg-[#faf7ff] ring-[#2b1848]/10" : "bg-white ring-[#2b1848]/15")}>
+    <section className="rounded-3xl bg-white p-5 ring-1 ring-[#2b1848]/10">
+      <h2 className="font-heading text-2xl text-[#2b1848]">{title}</h2>
+      <p className="mt-1 text-sm leading-6 text-[#6d5a86]">{copy}</p>
+      {matches.length === 0 ? (
+        <p className="mt-4 text-sm text-[#6d5a86]">{empty ?? "None yet."}</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {matches.map((match) => (
+            <FixtureCard key={match.id} match={match} leagueId={leagueId} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function FixtureCard({ match, leagueId }: { match: MatchView; leagueId: string }) {
+  const canScore = match.phase !== "upcoming"
+  return (
+    <li className={cn("rounded-2xl px-4 py-4 ring-1", match.phase === "forfeit" ? "bg-amber-50 ring-amber-200" : match.hidden ? "bg-[#faf7ff] ring-[#2b1848]/10" : "bg-white ring-[#2b1848]/15")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
+          <p className="text-xs font-semibold tracking-wide text-[#6d5a86] uppercase">Round {match.round}</p>
           <p className="font-semibold text-[#2b1848]">
             {match.playerAName}
             <span className="font-normal text-[#6d5a86]"> vs </span>
@@ -262,58 +291,81 @@ function FixtureCard({ match, leagueId }: { match: MatchView; leagueId: string }
           <p className="mt-1 text-xs text-[#6d5a86]">
             {lobbyText("L1", match.lobby1)} · {lobbyText("L2", match.lobby2)}
           </p>
-          <p className="mt-1 text-xs font-semibold text-[#6d5a86]">{releaseStatus(match)}</p>
+          <p className="mt-1 text-xs font-semibold text-[#6d5a86]">{phaseLabel(match)}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {match.hidden ? (
-            <form method="post" action="/api/admin/form">
-              <input type="hidden" name="intent" value="release-match" />
-              <input type="hidden" name="leagueId" value={leagueId} />
-              <input type="hidden" name="matchId" value={match.id} />
-              <button type="submit" className={buttonClass}>Release now</button>
-            </form>
-          ) : null}
-          <form method="post" action="/api/admin/form">
-            <input type="hidden" name="intent" value="remove-match" />
-            <input type="hidden" name="leagueId" value={leagueId} />
-            <input type="hidden" name="matchId" value={match.id} />
-            <button type="submit" className={quietButtonClass}>Delete</button>
-          </form>
-        </div>
+        <form method="post" action="/api/admin/form">
+          <input type="hidden" name="intent" value="remove-match" />
+          <input type="hidden" name="leagueId" value={leagueId} />
+          <input type="hidden" name="matchId" value={match.id} />
+          <button type="submit" className={quietButtonClass}>Delete</button>
+        </form>
       </div>
-      <form method="post" action="/api/admin/form" className="mt-4 grid gap-3">
-        <input type="hidden" name="intent" value="record-result" />
-        <input type="hidden" name="leagueId" value={leagueId} />
-        <input type="hidden" name="matchId" value={match.id} />
-        <LobbyFields
-          label="Lobby 1"
-          serverName="lobby1Server"
-          scoreAName="lobby1ScoreA"
-          scoreBName="lobby1ScoreB"
-          server={match.lobby1.server}
-          scoreA={match.lobby1.scoreA}
-          scoreB={match.lobby1.scoreB}
-          playerA={match.playerAName}
-          playerB={match.playerBName}
-        />
-        <LobbyFields
-          label="Lobby 2"
-          serverName="lobby2Server"
-          scoreAName="lobby2ScoreA"
-          scoreBName="lobby2ScoreB"
-          server={match.lobby2.server}
-          scoreA={match.lobby2.scoreA}
-          scoreB={match.lobby2.scoreB}
-          playerA={match.playerAName}
-          playerB={match.playerBName}
-        />
-        <button type="submit" className={cn(buttonClass, "sm:w-fit")}>Save result</button>
-      </form>
+      {match.phase === "forfeit" ? (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <ForfeitButton leagueId={leagueId} matchId={match.id} winnerId={match.playerAId} label={`${match.playerAName} gets 5–0, 5–0`} />
+          <ForfeitButton leagueId={leagueId} matchId={match.id} winnerId={match.playerBId} label={`${match.playerBName} gets 5–0, 5–0`} />
+        </div>
+      ) : null}
+      {canScore ? (
+        <form method="post" action="/api/admin/form" className="mt-4 grid gap-3">
+          <input type="hidden" name="intent" value="record-result" />
+          <input type="hidden" name="leagueId" value={leagueId} />
+          <input type="hidden" name="matchId" value={match.id} />
+          <LobbyFields
+            idPrefix={match.id}
+            label="Lobby 1"
+            serverName="lobby1Server"
+            scoreAName="lobby1ScoreA"
+            scoreBName="lobby1ScoreB"
+            server={match.lobby1.server}
+            scoreA={match.lobby1.scoreA}
+            scoreB={match.lobby1.scoreB}
+            playerA={match.playerAName}
+            playerB={match.playerBName}
+          />
+          <LobbyFields
+            idPrefix={match.id}
+            label="Lobby 2"
+            serverName="lobby2Server"
+            scoreAName="lobby2ScoreA"
+            scoreBName="lobby2ScoreB"
+            server={match.lobby2.server}
+            scoreA={match.lobby2.scoreA}
+            scoreB={match.lobby2.scoreB}
+            playerA={match.playerAName}
+            playerB={match.playerBName}
+          />
+          <button type="submit" className={cn(buttonClass, "sm:w-fit")}>Save and close</button>
+        </form>
+      ) : null}
     </li>
   )
 }
 
+function ForfeitButton({
+  leagueId,
+  matchId,
+  winnerId,
+  label,
+}: {
+  leagueId: string
+  matchId: string
+  winnerId: string
+  label: string
+}) {
+  return (
+    <form method="post" action="/api/admin/form">
+      <input type="hidden" name="intent" value="award-forfeit" />
+      <input type="hidden" name="leagueId" value={leagueId} />
+      <input type="hidden" name="matchId" value={matchId} />
+      <input type="hidden" name="winnerId" value={winnerId} />
+      <button type="submit" className={buttonClass}>{label}</button>
+    </form>
+  )
+}
+
 function LobbyFields({
+  idPrefix,
   label,
   serverName,
   scoreAName,
@@ -324,6 +376,7 @@ function LobbyFields({
   playerA,
   playerB,
 }: {
+  idPrefix: string
   label: string
   serverName: string
   scoreAName: string
@@ -334,7 +387,7 @@ function LobbyFields({
   playerA: string
   playerB: string
 }) {
-  const id = `${serverName}-field`
+  const id = `${idPrefix}-${serverName}`
   return (
     <fieldset className="grid gap-2 sm:grid-cols-[8rem_1fr_auto_1fr] sm:items-end">
       <legend className="mb-1 text-sm font-semibold text-[#2b1848] sm:col-span-4">{label}</legend>
