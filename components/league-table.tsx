@@ -4,19 +4,43 @@ import type { LeagueView, MatchView, Zone } from "@/lib/types"
 import { cn } from "cn"
 
 const zoneRow: Record<Zone, string> = {
-  promotion: "bg-emerald-50",
-  relegation: "bg-rose-50",
-  contested: "bg-amber-50",
+  promotion: "bg-[#e5f8ec]",
+  relegation: "bg-[#fde8ee]",
+  contested: "bg-[#fff4d4]",
   mid: "",
   none: "",
 }
 
+const positionTone: Record<Zone, string> = {
+  promotion: "bg-[#178a49] text-white shadow-[0_2px_0_#0d5c30]",
+  relegation: "bg-[#e11d48] text-white shadow-[0_2px_0_#9f1239]",
+  contested: "bg-[#f5b400] text-[#3d2a00] shadow-[0_2px_0_#b45309]",
+  mid: "bg-[#f3eef8] text-[#2b1848]",
+  none: "bg-[#f3eef8] text-[#2b1848]",
+}
+
 const zoneBadge: Record<Zone, string> = {
-  promotion: "bg-emerald-600 text-white",
-  relegation: "bg-rose-600 text-white",
-  contested: "bg-amber-500 text-[#3d2a00]",
+  promotion: "bg-[#178a49] text-white",
+  relegation: "bg-[#e11d48] text-white",
+  contested: "bg-[#f5b400] text-[#3d2a00]",
   mid: "bg-transparent text-[#6d5a86]",
   none: "bg-transparent text-[#6d5a86]",
+}
+
+function placeZone(
+  index: number,
+  total: number,
+  promotionSlots: number,
+  relegationSlots: number,
+): Zone {
+  const place = index + 1
+  const inPromo = promotionSlots > 0 && place <= promotionSlots
+  const relegStart = relegationSlots > 0 ? total - relegationSlots + 1 : total + 1
+  const inReleg = relegationSlots > 0 && place >= relegStart
+  if (inPromo && inReleg) return "contested"
+  if (inPromo) return "promotion"
+  if (inReleg) return "relegation"
+  return "mid"
 }
 
 function countLabel(count: number, singular: string, plural: string) {
@@ -128,10 +152,28 @@ export function LeagueTable({ league }: { league: LeagueView }) {
               </tr>
             </thead>
             <tbody>
-              {league.standings.map((row) => (
-                <tr key={row.playerId} className={cn("border-t border-[#2b1848]/8", zoneRow[row.zone])}>
-                  <td className="px-4 py-3 font-heading text-base text-[#2b1848] sm:px-5">
-                    {row.position}
+              {league.standings.map((row, index) => {
+                const painted =
+                  row.zone === "none"
+                    ? placeZone(
+                        index,
+                        league.standings.length,
+                        league.promotionSlots,
+                        league.relegationSlots,
+                      )
+                    : row.zone
+                return (
+                <tr key={row.playerId} className={cn("border-t border-[#2b1848]/8", zoneRow[painted])}>
+                  <td className="px-4 py-3 sm:px-5">
+                    <span
+                      className={cn(
+                        "inline-grid size-8 place-items-center rounded-full font-heading text-base",
+                        positionTone[painted],
+                      )}
+                      title={painted === "promotion" ? "Goes up" : painted === "relegation" ? "Goes down" : undefined}
+                    >
+                      {row.zone === "none" ? index + 1 : row.position}
+                    </span>
                   </td>
                   <td className="px-2 py-3">
                     <span className="font-semibold text-[#2b1848]">{row.name}</span>
@@ -156,14 +198,15 @@ export function LeagueTable({ league }: { league: LeagueView }) {
                     {row.points}
                   </td>
                   <td className="px-4 py-3 sm:px-5">
-                    {row.zone === "mid" || row.zone === "none" ? (
-                      <span className="text-[#6d5a86]">{ZONE_LABEL[row.zone]}</span>
+                    {painted === "mid" || painted === "none" ? (
+                      <span className="text-[#6d5a86]">{ZONE_LABEL[row.zone === "none" ? "none" : "mid"]}</span>
                     ) : (
-                      <Badge className={zoneBadge[row.zone]}>{ZONE_LABEL[row.zone]}</Badge>
+                      <Badge className={zoneBadge[painted]}>{ZONE_LABEL[painted]}</Badge>
                     )}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
