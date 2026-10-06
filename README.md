@@ -18,12 +18,10 @@ On the league desk, enter the scores and press **Save and close**. The table upd
 
 ## Match format
 
-Every lobby is **Solo mode, first to 5, win by 2**.
+Every lobby is **Solo mode, first to 5**. A pairing is two lobbies, and each one ends when a player reaches 5 rounds.
 
-- The lobby ends when a player reaches 5 rounds and leads by 2.
-- 5–3 is a win. 4–5 is not. That one has to reach 4–6.
-- 6–4, 7–5, and 8–6 are finished. 5–4 and 6–5 are not.
-- A score that keeps going after the lobby was already over, such as 6–3, is rejected.
+- 5–4, 5–3, and 5–0 are wins. So is 4–5.
+- A score that keeps going after 5, such as 6–4, is rejected.
 - There are no draws. You win the lobby or you lose it.
 
 ## How scoring works

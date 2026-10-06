@@ -8,23 +8,10 @@ export function scoreError(scoreA: number, scoreB: number) {
 
   const high = Math.max(scoreA, scoreB)
   const low = Math.min(scoreA, scoreB)
-  const margin = high - low
 
-  if (scoreA === scoreB || high < 5 || margin < 2) {
-    if (scoreA === scoreB) {
-      const target = Math.max(5, scoreA + 2)
-      return `Solo mode, FT5, win by 2. ${scoreA}–${scoreB} is not finished. It has to reach ${target}–${scoreA} or ${scoreA}–${target}.`
-    }
-    const targetHigh = Math.max(5, low + 2)
-    const nextA = scoreA < scoreB ? scoreA : targetHigh
-    const nextB = scoreA < scoreB ? targetHigh : scoreB
-    return `Solo mode, FT5, win by 2. ${scoreA}–${scoreB} is not a win. It has to be ${nextA}–${nextB}.`
+  if (high === 5 && low < 5) return null
+  if (high > 5) {
+    return `${scoreA}–${scoreB} is past the finish. Stop at 5.`
   }
-
-  const previousHigh = high - 1
-  if (previousHigh >= 5 && previousHigh - low >= 2) {
-    return `${scoreA}–${scoreB} is past the finish. Stop when a player first reaches 5 and leads by 2.`
-  }
-
-  return null
+  return `First to 5. ${scoreA}–${scoreB} is not finished.`
 }
