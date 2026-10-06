@@ -6,10 +6,6 @@ export function MatchFormat() {
         The match ends when someone reaches 5 rounds and leads by 2. A 4–5 is not a
         win. It has to be 4–6.
       </p>
-      <p className="mt-2">
-        L2 server is the away player. Lobby 2 server is the home player. Same server
-        means both lobbies are played on one server.
-      </p>
     </div>
   )
 }
