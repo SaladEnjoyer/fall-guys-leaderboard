@@ -1,4 +1,4 @@
-const dateTime = new Intl.DateTimeFormat("es", {
+const dateTime = new Intl.DateTimeFormat("en", {
   day: "numeric",
   month: "short",
   hour: "2-digit",
@@ -37,12 +37,17 @@ export const ACCENT_STYLES = {
     chip: "bg-[#ffd7ea] text-[#8a2458]",
     soft: "bg-[#fff3f8]",
   },
+  lime: {
+    bar: "bg-[#7bcf2b]",
+    chip: "bg-[#e5f8c8] text-[#3d6210]",
+    soft: "bg-[#f6fcec]",
+  },
 } as const
 
 export const ZONE_LABEL = {
-  promotion: "Ascenso",
-  relegation: "Descenso",
-  contested: "En disputa",
-  mid: "Permanece",
-  none: "Sin partidos",
+  promotion: "Promotion",
+  relegation: "Relegation",
+  contested: "Contested",
+  mid: "Stays",
+  none: "No matches",
 } as const

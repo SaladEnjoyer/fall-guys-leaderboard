@@ -20,14 +20,14 @@ const actions = new Set<AdminAction["type"]>([
 export async function POST(request: NextRequest) {
   if (!isAdmin(request)) {
     return NextResponse.json(
-      { error: "Entra con la clave para actualizar la liga." },
+      { error: "Sign in to update the league." },
       { status: 401 },
     )
   }
 
   const body = (await request.json().catch(() => null)) as AdminAction | null
   if (!body || typeof body !== "object" || !actions.has(body.type)) {
-    return NextResponse.json({ error: "No reconocí esa acción." }, { status: 400 })
+    return NextResponse.json({ error: "That action was not recognized." }, { status: 400 })
   }
 
   try {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react"
 import { LeagueTable } from "@/components/league-table"
+import { MatchFormat } from "@/components/match-format"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,7 +15,8 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ACCENT_STYLES, formatWhen } from "@/lib/format"
-import type { AdminAction, Board } from "@/lib/types"
+import { serverLabel } from "@/lib/rules"
+import type { AdminAction, Board, ServerSetup } from "@/lib/types"
 import { cn } from "cn"
 
 type Phase = "loading" | "locked" | "ready"
@@ -40,7 +42,7 @@ export function AdminPanel() {
       }
       const response = await fetch("/api/league", { cache: "no-store" })
       if (!response.ok) {
-        setError("No se pudo leer la liga.")
+        setError("Couldn't load the league.")
         setPhase("locked")
         return
       }
@@ -67,7 +69,7 @@ export function AdminPanel() {
       })
       const body = (await response.json()) as { error?: string }
       if (!response.ok) {
-        setError(body.error ?? "Clave incorrecta.")
+        setError(body.error ?? "Wrong password.")
         return
       }
       const league = await fetch("/api/league", { cache: "no-store" })
@@ -75,7 +77,7 @@ export function AdminPanel() {
       setPassword("")
       setPhase("ready")
     } catch {
-      setError("No se pudo entrar. Inténtalo de nuevo.")
+      setError("Couldn't sign in. Try again.")
     } finally {
       setBusy(false)
     }
@@ -100,18 +102,18 @@ export function AdminPanel() {
       const body = (await response.json()) as Board & { error?: string }
       if (response.status === 401) {
         setPhase("locked")
-        setError("La sesión caducó. Entra de nuevo.")
+        setError("Your session expired. Sign in again.")
         return false
       }
       if (!response.ok) {
-        setError(body.error ?? "No se pudo guardar.")
+        setError(body.error ?? "Couldn't save.")
         return false
       }
       setBoard(body)
       setNotice(success)
       return true
     } catch {
-      setError("No se pudo guardar. Inténtalo de nuevo.")
+      setError("Couldn't save. Try again.")
       return false
     } finally {
       setBusy(false)
@@ -133,13 +135,13 @@ export function AdminPanel() {
           onSubmit={login}
           className="rounded-3xl bg-white p-6 shadow-[0_8px_0_rgba(43,24,72,0.06)] ring-1 ring-[#2b1848]/10"
         >
-          <h1 className="font-heading text-3xl text-[#2b1848]">Panel de la liga</h1>
+          <h1 className="font-heading text-3xl text-[#2b1848]">League desk</h1>
           <p className="mt-2 text-sm leading-6 text-[#6d5a86]">
-            La tabla la puede ver cualquiera. Solo con esta clave se cargan partidos,
-            jugadores y los cortes de ascenso y descenso.
+            Anyone can view the table. This password is what lets you add matches,
+            players, and the promotion and relegation cuts.
           </p>
           <div className="mt-5 space-y-2">
-            <Label htmlFor="password">Clave</Label>
+            <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               type="password"
@@ -155,7 +157,7 @@ export function AdminPanel() {
             </p>
           ) : null}
           <Button type="submit" className="mt-5 h-11 w-full" disabled={busy}>
-            {busy ? "Entrando…" : "Entrar"}
+            {busy ? "Signing in…" : "Sign in"}
           </Button>
         </form>
       </div>
@@ -170,16 +172,16 @@ export function AdminPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-heading text-3xl text-[#2b1848] sm:text-4xl">
-            Cargar resultado
+            Add a result
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6d5a86]">
-            Al guardar un partido, esa liga se recalcula sola: puntos, diferencia de
-            rondas y las zonas de ascenso y descenso. Los cortes de ahora son
-            provisionales.
+            Saving a match recalculates that league on its own: points, round
+            difference, and the promotion and relegation zones. The cuts in place
+            now are provisional.
           </p>
         </div>
         <Button variant="outline" className="h-10 bg-white" onClick={() => void logout()}>
-          Cerrar sesión
+          Sign out
         </Button>
       </div>
 
@@ -239,6 +241,7 @@ function LeagueEditor({
   const [playerB, setPlayerB] = useState<string | null>(null)
   const [scoreA, setScoreA] = useState("0")
   const [scoreB, setScoreB] = useState("0")
+  const [servers, setServers] = useState<ServerSetup>("split")
   const [promotion, setPromotion] = useState(String(league.promotionSlots))
   const [relegation, setRelegation] = useState(String(league.relegationSlots))
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -257,10 +260,10 @@ function LeagueEditor({
           <div className={cn("mb-4 inline-flex rounded-full px-3 py-1 text-xs font-bold", accent.chip)}>
             {league.zoneSummary}
           </div>
-          <h2 className="font-heading text-2xl text-[#2b1848]">Partido</h2>
-          <p className="mt-1 text-sm text-[#6d5a86]">
-            Rondas ganadas por cada jugador. Si empatan el partido, los dos suman 1 punto.
-          </p>
+          <h2 className="font-heading text-2xl text-[#2b1848]">Match</h2>
+          <div className="mt-3">
+            <MatchFormat />
+          </div>
           <form
             className="mt-4 grid gap-3"
             onSubmit={(event) => {
@@ -274,8 +277,9 @@ function LeagueEditor({
                   playerBId: playerBValue,
                   scoreA: Number(scoreA),
                   scoreB: Number(scoreB),
+                  servers,
                 },
-                "Partido cargado. La tabla ya está actualizada.",
+                "Match saved. The table is already updated.",
               ).then((saved) => {
                 if (!saved) return
                 setScoreA("0")
@@ -285,37 +289,51 @@ function LeagueEditor({
           >
             <div className="grid gap-3 sm:grid-cols-[1fr_5rem] sm:items-end">
               <PlayerField
-                label="Jugador A"
+                label="Home · hosts Lobby 2"
                 players={league.players}
                 value={playerAValue}
                 onChange={setPlayerA}
               />
-              <ScoreField id={`${league.id}-score-a`} label="Rondas" value={scoreA} onChange={setScoreA} />
+              <ScoreField id={`${league.id}-score-a`} label="Rounds" value={scoreA} onChange={setScoreA} />
             </div>
             <div className="grid gap-3 sm:grid-cols-[1fr_5rem] sm:items-end">
               <PlayerField
-                label="Jugador B"
+                label="Away · hosts L2"
                 players={league.players}
                 value={playerBValue}
                 onChange={setPlayerB}
               />
-              <ScoreField id={`${league.id}-score-b`} label="Rondas" value={scoreB} onChange={setScoreB} />
+              <ScoreField id={`${league.id}-score-b`} label="Rounds" value={scoreB} onChange={setScoreB} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <ServerChoice
+                pressed={servers === "split"}
+                title="Split servers"
+                detail="L2 on away · Lobby 2 on home"
+                onClick={() => setServers("split")}
+              />
+              <ServerChoice
+                pressed={servers === "same"}
+                title="Same server"
+                detail="Both lobbies on one server"
+                onClick={() => setServers("same")}
+              />
             </div>
             <Button
               type="submit"
               className="h-11"
               disabled={busy || league.players.length < 2 || !playerAValue || !playerBValue}
             >
-              {busy ? "Guardando…" : "Guardar partido"}
+              {busy ? "Saving…" : "Save match"}
             </Button>
             {league.players.length < 2 ? (
-              <p className="text-sm text-[#6d5a86]">Agrega al menos dos jugadores para poder cargar un partido.</p>
+              <p className="text-sm text-[#6d5a86]">Add at least two players before you can record a match.</p>
             ) : null}
           </form>
         </section>
 
         <section className="rounded-3xl bg-white p-5 ring-1 ring-[#2b1848]/10">
-          <h2 className="font-heading text-2xl text-[#2b1848]">Jugadores</h2>
+          <h2 className="font-heading text-2xl text-[#2b1848]">Players</h2>
           <form
             className="mt-4 flex flex-col gap-2 sm:flex-row"
             onSubmit={(event) => {
@@ -323,29 +341,29 @@ function LeagueEditor({
               const next = playerName
               void onAct(
                 { type: "add-player", leagueId: league.id, name: next },
-                `${next.trim()} entra en ${league.name}.`,
+                `${next.trim()} joined ${league.name}.`,
               ).then((saved) => {
                 if (saved) setPlayerName("")
               })
             }}
           >
             <Label htmlFor={`${league.id}-player`} className="sr-only">
-              Nombre del jugador
+              Player name
             </Label>
             <Input
               id={`${league.id}-player`}
               value={playerName}
               onChange={(event) => setPlayerName(event.target.value)}
-              placeholder="Nombre"
+              placeholder="Name"
               className="h-11"
               maxLength={24}
             />
             <Button type="submit" className="h-11" disabled={busy || !playerName.trim()}>
-              Agregar
+              Add
             </Button>
           </form>
           {league.players.length === 0 ? (
-            <p className="mt-3 text-sm text-[#6d5a86]">Nadie en esta liga todavía.</p>
+            <p className="mt-3 text-sm text-[#6d5a86]">Nobody in this league yet.</p>
           ) : (
             <ul className="mt-4 divide-y divide-[#2b1848]/8">
               {league.players.map((player) => (
@@ -357,7 +375,7 @@ function LeagueEditor({
                         event.preventDefault()
                         void onAct(
                           { type: "rename-player", playerId: player.id, name: editingName },
-                          "Nombre actualizado.",
+                          "Name updated.",
                         ).then(() => setEditingId(null))
                       }}
                     >
@@ -366,10 +384,10 @@ function LeagueEditor({
                         onChange={(event) => setEditingName(event.target.value)}
                         className="h-10"
                         maxLength={24}
-                        aria-label={`Nuevo nombre de ${player.name}`}
+                        aria-label={`New name for ${player.name}`}
                       />
                       <Button type="submit" className="h-10" disabled={busy}>
-                        Guardar
+                        Save
                       </Button>
                     </form>
                   ) : (
@@ -385,7 +403,7 @@ function LeagueEditor({
                         setEditingName(player.name)
                       }}
                     >
-                      Renombrar
+                      Rename
                     </Button>
                     <Button
                       type="button"
@@ -395,17 +413,17 @@ function LeagueEditor({
                       onClick={() => {
                         if (
                           window.confirm(
-                            `Quitar a ${player.name} también borra sus partidos. ¿Seguro?`,
+                            `Removing ${player.name} also deletes their matches. Continue?`,
                           )
                         ) {
                           void onAct(
                             { type: "remove-player", playerId: player.id },
-                            `${player.name} salió de la liga.`,
+                            `${player.name} left the league.`,
                           )
                         }
                       }}
                     >
-                      Quitar
+                      Remove
                     </Button>
                   </div>
                 </li>
@@ -415,11 +433,11 @@ function LeagueEditor({
         </section>
 
         <section className="rounded-3xl bg-white p-5 ring-1 ring-[#2b1848]/10">
-          <h2 className="font-heading text-2xl text-[#2b1848]">Ascenso y descenso</h2>
+          <h2 className="font-heading text-2xl text-[#2b1848]">Promotion and relegation</h2>
           <p className="mt-1 text-sm leading-6 text-[#6d5a86]">
-            Pon 0 si esta liga no asciende o no desciende. Cuando lo tengas claro,
-            cambia los números: la tabla pública se marca al momento. Un empate justo
-            en el corte se muestra como “en disputa”.
+            Use 0 if this league has no promotion or no relegation. Change the
+            numbers whenever you decide: the public table updates right away. A tie
+            right on the cut shows as “contested”.
           </p>
           <form
             className="mt-4 grid gap-3 sm:grid-cols-2"
@@ -432,12 +450,12 @@ function LeagueEditor({
                   promotionSlots: Number(promotion),
                   relegationSlots: Number(relegation),
                 },
-                "Cortes actualizados.",
+                "Cuts updated.",
               )
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor={`${league.id}-up`}>Puestos de ascenso</Label>
+              <Label htmlFor={`${league.id}-up`}>Promotion spots</Label>
               <Input
                 id={`${league.id}-up`}
                 type="number"
@@ -449,7 +467,7 @@ function LeagueEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`${league.id}-down`}>Puestos de descenso</Label>
+              <Label htmlFor={`${league.id}-down`}>Relegation spots</Label>
               <Input
                 id={`${league.id}-down`}
                 type="number"
@@ -461,29 +479,29 @@ function LeagueEditor({
               />
             </div>
             <Button type="submit" className="h-11 sm:col-span-2" disabled={busy}>
-              Guardar cortes
+              Save cuts
             </Button>
           </form>
           <p className="mt-3 text-xs leading-5 text-[#6d5a86]">
-            Provisional de arranque: Liga 1 descienden 2, Ligas 2 y 3 ascienden 2 y
-            descienden 2, Liga 4 ascienden 2.
+            Starting guess: League 1 relegates 2, Leagues 2–4 promote 2 and relegate
+            2, League 5 promotes 2.
           </p>
         </section>
 
         <section className="rounded-3xl bg-white p-5 ring-1 ring-[#2b1848]/10">
-          <h2 className="font-heading text-2xl text-[#2b1848]">Nombre de la liga</h2>
+          <h2 className="font-heading text-2xl text-[#2b1848]">League name</h2>
           <form
             className="mt-4 flex flex-col gap-2 sm:flex-row"
             onSubmit={(event) => {
               event.preventDefault()
               void onAct(
                 { type: "rename-league", leagueId: league.id, name },
-                "Nombre de la liga actualizado.",
+                "League renamed.",
               )
             }}
           >
             <Label htmlFor={`${league.id}-name`} className="sr-only">
-              Nombre de la liga
+              League name
             </Label>
             <Input
               id={`${league.id}-name`}
@@ -493,7 +511,7 @@ function LeagueEditor({
               maxLength={24}
             />
             <Button type="submit" variant="outline" className="h-11" disabled={busy || !name.trim()}>
-              Renombrar
+              Rename
             </Button>
           </form>
           <Button
@@ -504,17 +522,17 @@ function LeagueEditor({
             onClick={() => {
               if (
                 window.confirm(
-                  `Se borran los partidos de ${league.name}. Los jugadores se quedan. ¿Seguro?`,
+                  `This deletes every match in ${league.name}. Players stay. Continue?`,
                 )
               ) {
                 void onAct(
                   { type: "reset-matches", leagueId: league.id },
-                  `Partidos de ${league.name} reiniciados.`,
+                  `Matches in ${league.name} were reset.`,
                 )
               }
             }}
           >
-            Reiniciar partidos de esta liga
+            Reset matches in this league
           </Button>
         </section>
       </div>
@@ -523,20 +541,24 @@ function LeagueEditor({
         <LeagueTable league={league} />
         {league.matches.length > 0 ? (
           <section className="rounded-3xl bg-white p-5 ring-1 ring-[#2b1848]/10">
-            <h2 className="font-heading text-2xl text-[#2b1848]">Corregir un partido</h2>
+            <h2 className="font-heading text-2xl text-[#2b1848]">Fix a match</h2>
             <p className="mt-1 text-sm text-[#6d5a86]">
-              Si el marcador quedó mal, bórralo y cárgalo otra vez. La tabla se ajusta sola.
+              If a score is wrong, delete it and enter it again. The table adjusts on its own.
             </p>
             <ul className="mt-4 space-y-2">
               {league.matches.map((match) => (
                 <li key={match.id} className="flex flex-col gap-2 rounded-2xl bg-[#faf7ff] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm">
                     <span className="font-semibold text-[#2b1848]">{match.playerAName}</span>{" "}
+                    <span className="text-xs text-[#6d5a86]">home</span>{" "}
                     <span className="font-heading tabular-nums">
                       {match.scoreA}–{match.scoreB}
                     </span>{" "}
-                    <span className="font-semibold text-[#2b1848]">{match.playerBName}</span>
-                    <span className="mt-1 block text-xs text-[#6d5a86]">{formatWhen(match.playedAt)}</span>
+                    <span className="font-semibold text-[#2b1848]">{match.playerBName}</span>{" "}
+                    <span className="text-xs text-[#6d5a86]">away</span>
+                    <span className="mt-1 block text-xs text-[#6d5a86]">
+                      {serverLabel(match.servers)} · {formatWhen(match.playedAt)}
+                    </span>
                   </p>
                   <Button
                     type="button"
@@ -544,15 +566,15 @@ function LeagueEditor({
                     className="h-9"
                     disabled={busy}
                     onClick={() => {
-                      if (window.confirm("¿Borrar este partido?")) {
+                      if (window.confirm("Delete this match?")) {
                         void onAct(
                           { type: "remove-match", matchId: match.id },
-                          "Partido borrado. La tabla se recalculó.",
+                          "Match deleted. The table was recalculated.",
                         )
                       }
                     }}
                   >
-                    Borrar
+                    Delete
                   </Button>
                 </li>
               ))}
@@ -561,6 +583,37 @@ function LeagueEditor({
         ) : null}
       </div>
     </div>
+  )
+}
+
+function ServerChoice({
+  pressed,
+  title,
+  detail,
+  onClick,
+}: {
+  pressed: boolean
+  title: string
+  detail: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl px-3 py-3 text-left ring-1 transition-colors",
+        pressed
+          ? "bg-[#2b1848] text-white ring-[#2b1848]"
+          : "bg-white text-[#2b1848] ring-[#2b1848]/15 hover:bg-[#faf7ff]",
+      )}
+    >
+      <span className="block text-sm font-semibold">{title}</span>
+      <span className={cn("mt-1 block text-xs", pressed ? "text-white/80" : "text-[#6d5a86]")}>
+        {detail}
+      </span>
+    </button>
   )
 }
 
@@ -584,7 +637,7 @@ function PlayerField({
         disabled={players.length === 0}
       >
         <SelectTrigger className="h-11 w-full">
-          <SelectValue placeholder="Elige jugador" />
+          <SelectValue placeholder="Choose a player" />
         </SelectTrigger>
         <SelectContent>
           {players.map((player) => (

@@ -13,15 +13,15 @@ const fredoka = Fredoka({
 })
 
 export const metadata: Metadata = {
-  title: "Liga Fall Guys 1v1",
+  title: "Fall Guys 1v1 League",
   description:
-    "Marcador público de cuatro ligas. Al cargar un partido, la tabla, el ascenso y el descenso se actualizan solos.",
+    "Public scoreboard for five leagues. Saving a match updates the table, promotion, and relegation on their own.",
 }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="es"
+      lang="en"
       className={`${nunito.variable} ${fredoka.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

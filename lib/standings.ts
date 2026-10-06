@@ -64,16 +64,16 @@ function zoneForRange(
 export function describeZones(promotionSlots: number, relegationSlots: number) {
   const up =
     promotionSlots <= 0
-      ? "Sin ascenso"
+      ? "No promotion"
       : promotionSlots === 1
-        ? "Asciende el 1.º"
-        : `Ascienden los ${promotionSlots} primeros`
+        ? "1st promotes"
+        : `Top ${promotionSlots} promote`
   const down =
     relegationSlots <= 0
-      ? "sin descenso"
+      ? "no relegation"
       : relegationSlots === 1
-        ? "desciende el último"
-        : `descienden los ${relegationSlots} últimos`
+        ? "last place relegates"
+        : `bottom ${relegationSlots} relegate`
   return `${up} · ${down}`
 }
 
@@ -138,7 +138,7 @@ export function computeStandings(
     if (b.points !== a.points) return b.points - a.points
     if (b.roundDiff !== a.roundDiff) return b.roundDiff - a.roundDiff
     if (b.roundsFor !== a.roundsFor) return b.roundsFor - a.roundsFor
-    return a.name.localeCompare(b.name, "es", { sensitivity: "base" })
+    return a.name.localeCompare(b.name, "en", { sensitivity: "base" })
   })
 
   const standings: StandingRow[] = []

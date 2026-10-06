@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as { password?: unknown } | null
   const password = typeof body?.password === "string" ? body.password : ""
   if (!passwordsMatch(password, adminPassword())) {
-    return NextResponse.json({ error: "Clave incorrecta." }, { status: 401 })
+    return NextResponse.json({ error: "Wrong password." }, { status: 401 })
   }
 
   const response = NextResponse.json({ ok: true })

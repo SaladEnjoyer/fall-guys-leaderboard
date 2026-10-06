@@ -106,7 +106,7 @@ test("si el grupo empatado cabe entero en la zona, ascienden todos", () => {
 })
 
 test("describe los cortes en una frase", () => {
-  assert.equal(describeZones(0, 2), "Sin ascenso · descienden los 2 últimos")
-  assert.equal(describeZones(2, 0), "Ascienden los 2 primeros · sin descenso")
-  assert.equal(describeZones(1, 1), "Asciende el 1.º · desciende el último")
+  assert.equal(describeZones(0, 2), "No promotion · bottom 2 relegate")
+  assert.equal(describeZones(2, 0), "Top 2 promote · no relegation")
+  assert.equal(describeZones(1, 1), "1st promotes · last place relegates")
 })

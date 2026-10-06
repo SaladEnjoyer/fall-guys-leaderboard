@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { LeagueTable } from "@/components/league-table"
+import { MatchFormat } from "@/components/match-format"
 import { ACCENT_STYLES } from "@/lib/format"
 import type { Board } from "@/lib/types"
 import { cn } from "cn"
@@ -23,7 +24,7 @@ export function LeagueBoard() {
           setError(null)
         }
       } catch {
-        if (!stop) setError("No se pudo leer la tabla. Se reintenta sola.")
+        if (!stop) setError("Couldn't load the table. Retrying.")
       }
     }
 
@@ -44,18 +45,19 @@ export function LeagueBoard() {
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
             </span>
-            En vivo
+            Live
           </p>
           <h1 className="mt-1 font-heading text-3xl text-[#2b1848] sm:text-4xl">
-            Clasificación
+            Standings
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6d5a86] sm:text-base">
-            Victoria 3 puntos, empate 1, derrota 0. Si hay empate a puntos, manda la
-            diferencia de rondas y después las rondas a favor. Los puestos de ascenso
-            y descenso están marcados, y se pueden cambiar cuando los definas.
+            Win 3 points, loss 0. Tied on points, round difference comes first, then
+            rounds won. Promotion and relegation spots are marked, and you can change
+            them whenever you decide.
           </p>
         </div>
       </div>
+      <MatchFormat />
 
       {error ? (
         <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-800" role="status">
@@ -87,7 +89,7 @@ export function LeagueBoard() {
         </>
       ) : (
         <div className="grid gap-4">
-          {Array.from({ length: 4 }, (_, index) => (
+          {Array.from({ length: 5 }, (_, index) => (
             <div
               key={index}
               className="h-48 animate-pulse rounded-3xl bg-white/70 ring-1 ring-[#2b1848]/10"

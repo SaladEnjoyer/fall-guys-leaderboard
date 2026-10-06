@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation"
 import { cn } from "cn"
 
 const links = [
-  { href: "/", label: "Tablas" },
-  { href: "/admin", label: "Cargar partido" },
+  { href: "/", label: "Tables" },
+  { href: "/admin", label: "Add result" },
 ]
 
 export function SiteHeader() {
@@ -20,10 +20,10 @@ export function SiteHeader() {
         </span>
         <span>
           <span className="block font-heading text-xl leading-none text-[#2b1848] sm:text-2xl">
-            Liga Fall Guys 1v1
+            Fall Guys 1v1 League
           </span>
           <span className="mt-1 block text-sm text-[#6d5a86]">
-            Cuatro ligas, un marcador compartido
+            Five leagues, one shared scoreboard
           </span>
         </span>
       </Link>

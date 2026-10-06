@@ -1,4 +1,4 @@
-export type LeagueAccent = "gold" | "violet" | "cyan" | "pink"
+export type LeagueAccent = "gold" | "violet" | "cyan" | "pink" | "lime"
 
 export type League = {
   id: string
@@ -15,6 +15,8 @@ export type Player = {
   createdAt: string
 }
 
+export type ServerSetup = "split" | "same"
+
 export type Match = {
   id: string
   leagueId: string
@@ -24,6 +26,7 @@ export type Match = {
   playerBName: string
   scoreA: number
   scoreB: number
+  servers: ServerSetup
   playedAt: string
 }
 
@@ -59,6 +62,7 @@ export type MatchView = {
   playerBName: string
   scoreA: number
   scoreB: number
+  servers: ServerSetup
   result: "A" | "B" | "draw"
 }
 
@@ -91,6 +95,7 @@ export type AdminAction =
       playerBId: string
       scoreA: number
       scoreB: number
+      servers: ServerSetup
     }
   | { type: "remove-match"; matchId: string }
   | {

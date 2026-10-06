@@ -1,3 +1,4 @@
+import { isServerSetup } from "@/lib/rules"
 import { computeStandings, describeZones } from "@/lib/standings"
 import type { Board, LeagueState, MatchView } from "@/lib/types"
 
@@ -18,7 +19,7 @@ export function buildBoard(state: LeagueState): Board {
       const players = state.players
         .filter((player) => player.leagueId === league.id)
         .sort((a, b) =>
-          a.name.localeCompare(b.name, "es", { sensitivity: "base" }),
+          a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
         )
       const matches = state.matches
         .filter((match) => match.leagueId === league.id)
@@ -33,6 +34,7 @@ export function buildBoard(state: LeagueState): Board {
         playerBName: displayName(match.playerBId, match.playerBName, names),
         scoreA: match.scoreA,
         scoreB: match.scoreB,
+        servers: isServerSetup(match.servers) ? match.servers : "split",
         result:
           match.scoreA === match.scoreB
             ? "draw"

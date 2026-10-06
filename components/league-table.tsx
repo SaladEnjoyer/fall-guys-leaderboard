@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { ACCENT_STYLES, ZONE_LABEL, formatDiff, formatWhen } from "@/lib/format"
+import { serverLabel } from "@/lib/rules"
 import type { LeagueView, Zone } from "@/lib/types"
 import { cn } from "cn"
 
@@ -19,6 +20,10 @@ const zoneBadge: Record<Zone, string> = {
   none: "bg-transparent text-[#6d5a86]",
 }
 
+function countLabel(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 export function LeagueTable({ league }: { league: LeagueView }) {
   const accent = ACCENT_STYLES[league.accent]
 
@@ -31,33 +36,34 @@ export function LeagueTable({ league }: { league: LeagueView }) {
           <p className="mt-1 text-sm text-[#6d5a86]">{league.zoneSummary}</p>
         </div>
         <p className="text-sm font-medium text-[#6d5a86]">
-          {league.players.length} jugadores · {league.matches.length} partidos
+          {countLabel(league.players.length, "player", "players")} ·{" "}
+          {countLabel(league.matches.length, "match", "matches")}
         </p>
       </div>
 
       {league.players.length === 0 ? (
         <p className="px-4 pb-5 text-sm text-[#6d5a86] sm:px-5">
-          Esta liga todavía no tiene jugadores. Se agregan desde Cargar partido.
+          This league has no players yet. Add them from Add result.
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <caption className="sr-only">
-              Clasificación de {league.name}. {league.zoneSummary}.
+              {league.name} standings. {league.zoneSummary}.
             </caption>
             <thead>
               <tr className="text-left text-xs tracking-wide text-[#6d5a86] uppercase">
                 <th className="px-4 py-2 font-semibold sm:px-5">Pos</th>
-                <th className="px-2 py-2 font-semibold">Jugador</th>
-                <th className="px-2 py-2 text-center font-semibold">PJ</th>
-                <th className="px-2 py-2 text-center font-semibold">G</th>
-                <th className="px-2 py-2 text-center font-semibold">E</th>
-                <th className="px-2 py-2 text-center font-semibold">P</th>
-                <th className="px-2 py-2 text-center font-semibold">RF</th>
-                <th className="px-2 py-2 text-center font-semibold">RC</th>
-                <th className="px-2 py-2 text-center font-semibold">DR</th>
+                <th className="px-2 py-2 font-semibold">Player</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Matches played">MP</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Wins">W</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Draws">D</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Losses">L</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Rounds for">RF</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Rounds against">RA</th>
+                <th className="px-2 py-2 text-center font-semibold" title="Round difference">RD</th>
                 <th className="px-2 py-2 text-center font-semibold">Pts</th>
-                <th className="px-4 py-2 font-semibold sm:px-5">Zona</th>
+                <th className="px-4 py-2 font-semibold sm:px-5">Zone</th>
               </tr>
             </thead>
             <tbody>
@@ -93,20 +99,20 @@ export function LeagueTable({ league }: { league: LeagueView }) {
 
       {league.zonesOverlap ? (
         <p className="mx-4 mb-4 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:mx-5">
-          Hay más puestos de ascenso y descenso que jugadores. Ajusta los cortes para que no se pisen.
+          There are more promotion and relegation spots than players. Adjust the cuts so they do not overlap.
         </p>
       ) : null}
 
       <div className="flex flex-wrap gap-2 px-4 pb-4 text-xs text-[#6d5a86] sm:px-5">
-        <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-800">Ascenso</span>
-        <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-900">En disputa si empatan en el corte</span>
-        <span className="rounded-full bg-rose-100 px-2 py-1 text-rose-800">Descenso</span>
+        <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-800">Promotion</span>
+        <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-900">Contested if they tie on the cut</span>
+        <span className="rounded-full bg-rose-100 px-2 py-1 text-rose-800">Relegation</span>
       </div>
 
       <div className="border-t border-[#2b1848]/8 px-4 py-4 sm:px-5">
-        <h3 className="font-heading text-lg text-[#2b1848]">Últimos partidos</h3>
+        <h3 className="font-heading text-lg text-[#2b1848]">Recent matches</h3>
         {league.matches.length === 0 ? (
-          <p className="mt-2 text-sm text-[#6d5a86]">Todavía no hay resultados en esta liga.</p>
+          <p className="mt-2 text-sm text-[#6d5a86]">No results in this league yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {league.matches.slice(0, 8).map((match) => (
@@ -115,12 +121,15 @@ export function LeagueTable({ league }: { league: LeagueView }) {
                   <span className={match.result === "A" ? "font-bold text-[#2b1848]" : "text-[#6d5a86]"}>
                     {match.playerAName}
                   </span>{" "}
+                  <span className="text-xs text-[#6d5a86]">home</span>{" "}
                   <span className="font-heading text-base tabular-nums text-[#2b1848]">
                     {match.scoreA}–{match.scoreB}
                   </span>{" "}
                   <span className={match.result === "B" ? "font-bold text-[#2b1848]" : "text-[#6d5a86]"}>
                     {match.playerBName}
-                  </span>
+                  </span>{" "}
+                  <span className="text-xs text-[#6d5a86]">away</span>
+                  <span className="mt-1 block text-xs text-[#6d5a86]">{serverLabel(match.servers)}</span>
                 </p>
                 <time className="text-xs text-[#6d5a86]" dateTime={match.playedAt}>
                   {formatWhen(match.playedAt)}

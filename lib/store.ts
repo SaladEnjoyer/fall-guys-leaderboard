@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { buildBoard } from "@/lib/board"
 import { createInitialState } from "@/lib/defaults"
+import { isServerSetup, scoreError } from "@/lib/rules"
 import type { AdminAction, Board, League, LeagueState, Match, Player } from "@/lib/types"
 
 const dataFile = path.join(process.cwd(), "data", "league.json")
@@ -103,11 +104,12 @@ function normalize(raw: unknown): LeagueState {
           playerAId: item.playerAId,
           playerBId: item.playerBId,
           playerAName:
-            typeof item.playerAName === "string" ? item.playerAName : "Jugador",
+            typeof item.playerAName === "string" ? item.playerAName : "Player",
           playerBName:
-            typeof item.playerBName === "string" ? item.playerBName : "Jugador",
+            typeof item.playerBName === "string" ? item.playerBName : "Player",
           scoreA,
           scoreB,
+          servers: isServerSetup(item.servers) ? item.servers : "split",
           playedAt:
             typeof item.playedAt === "string"
               ? item.playedAt
@@ -149,18 +151,18 @@ async function persist(state: LeagueState) {
 
 function requireLeague(state: LeagueState, leagueId: string) {
   const league = state.leagues.find((item) => item.id === leagueId)
-  if (!league) throw new ActionError(400, "Esa liga no existe.")
+  if (!league) throw new ActionError(400, "That league does not exist.")
   return league
 }
 
 function cleanName(value: unknown, label: string) {
   if (typeof value !== "string") {
-    throw new ActionError(400, `Escribe ${label}.`)
+    throw new ActionError(400, `Enter ${label}.`)
   }
   const name = value.trim().replace(/\s+/g, " ")
-  if (!name) throw new ActionError(400, `Escribe ${label}.`)
+  if (!name) throw new ActionError(400, `Enter ${label}.`)
   if (name.length > 24) {
-    throw new ActionError(400, `${label} puede tener hasta 24 caracteres.`)
+    throw new ActionError(400, `${label} can be up to 24 characters.`)
   }
   return name
 }
@@ -169,7 +171,7 @@ function requireSlot(value: unknown, label: string) {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 12) {
     throw new ActionError(
       400,
-      `${label} tiene que ser un número entero entre 0 y 12.`,
+      `${label} has to be a whole number from 0 to 12.`,
     )
   }
   return value
@@ -179,14 +181,14 @@ function applyAction(state: LeagueState, action: AdminAction) {
   switch (action.type) {
     case "add-player": {
       const league = requireLeague(state, action.leagueId)
-      const name = cleanName(action.name, "un nombre")
+      const name = cleanName(action.name, "a name")
       const duplicate = state.players.some(
         (player) =>
           player.leagueId === league.id &&
-          player.name.localeCompare(name, "es", { sensitivity: "base" }) === 0,
+          player.name.localeCompare(name, "en", { sensitivity: "base" }) === 0,
       )
       if (duplicate) {
-        throw new ActionError(400, "Ese nombre ya está en esta liga.")
+        throw new ActionError(400, "That name is already in this league.")
       }
       state.players.push({
         id: randomUUID(),
@@ -198,23 +200,23 @@ function applyAction(state: LeagueState, action: AdminAction) {
     }
     case "rename-player": {
       const player = state.players.find((item) => item.id === action.playerId)
-      if (!player) throw new ActionError(400, "Ese jugador no está en la liga.")
-      const name = cleanName(action.name, "un nombre")
+      if (!player) throw new ActionError(400, "That player is not in the league.")
+      const name = cleanName(action.name, "a name")
       const duplicate = state.players.some(
         (item) =>
           item.id !== player.id &&
           item.leagueId === player.leagueId &&
-          item.name.localeCompare(name, "es", { sensitivity: "base" }) === 0,
+          item.name.localeCompare(name, "en", { sensitivity: "base" }) === 0,
       )
       if (duplicate) {
-        throw new ActionError(400, "Ese nombre ya está en esta liga.")
+        throw new ActionError(400, "That name is already in this league.")
       }
       player.name = name
       return
     }
     case "remove-player": {
       const player = state.players.find((item) => item.id === action.playerId)
-      if (!player) throw new ActionError(400, "Ese jugador no está en la liga.")
+      if (!player) throw new ActionError(400, "That player is not in the league.")
       state.players = state.players.filter((item) => item.id !== player.id)
       state.matches = state.matches.filter(
         (match) =>
@@ -225,7 +227,7 @@ function applyAction(state: LeagueState, action: AdminAction) {
     case "add-match": {
       const league = requireLeague(state, action.leagueId)
       if (action.playerAId === action.playerBId) {
-        throw new ActionError(400, "Elige dos jugadores distintos.")
+        throw new ActionError(400, "Pick two different players.")
       }
       const playerA = state.players.find(
         (player) => player.id === action.playerAId && player.leagueId === league.id,
@@ -234,13 +236,12 @@ function applyAction(state: LeagueState, action: AdminAction) {
         (player) => player.id === action.playerBId && player.leagueId === league.id,
       )
       if (!playerA || !playerB) {
-        throw new ActionError(400, "Los dos jugadores tienen que ser de esta liga.")
+        throw new ActionError(400, "Both players have to be in this league.")
       }
-      if (!isScore(action.scoreA) || !isScore(action.scoreB)) {
-        throw new ActionError(
-          400,
-          "Las rondas tienen que ser un número entero entre 0 y 30.",
-        )
+      const invalidScore = scoreError(action.scoreA, action.scoreB)
+      if (invalidScore) throw new ActionError(400, invalidScore)
+      if (!isServerSetup(action.servers)) {
+        throw new ActionError(400, "Pick split servers or same server.")
       }
       state.matches.push({
         id: randomUUID(),
@@ -251,6 +252,7 @@ function applyAction(state: LeagueState, action: AdminAction) {
         playerBName: playerB.name,
         scoreA: action.scoreA,
         scoreB: action.scoreB,
+        servers: action.servers,
         playedAt: new Date().toISOString(),
       })
       return
@@ -259,19 +261,19 @@ function applyAction(state: LeagueState, action: AdminAction) {
       const before = state.matches.length
       state.matches = state.matches.filter((match) => match.id !== action.matchId)
       if (state.matches.length === before) {
-        throw new ActionError(400, "Ese partido ya no está.")
+        throw new ActionError(400, "That match is already gone.")
       }
       return
     }
     case "update-zones": {
       const league: League = requireLeague(state, action.leagueId)
-      league.promotionSlots = requireSlot(action.promotionSlots, "El ascenso")
-      league.relegationSlots = requireSlot(action.relegationSlots, "El descenso")
+      league.promotionSlots = requireSlot(action.promotionSlots, "Promotion spots")
+      league.relegationSlots = requireSlot(action.relegationSlots, "Relegation spots")
       return
     }
     case "rename-league": {
       const league = requireLeague(state, action.leagueId)
-      league.name = cleanName(action.name, "el nombre de la liga")
+      league.name = cleanName(action.name, "the league name")
       return
     }
     case "reset-matches": {
@@ -280,7 +282,7 @@ function applyAction(state: LeagueState, action: AdminAction) {
       return
     }
     default: {
-      throw new ActionError(400, "No reconocí esa acción.")
+      throw new ActionError(400, "That action was not recognized.")
     }
   }
 }
@@ -305,5 +307,5 @@ export function actionStatus(error: unknown) {
 
 export function actionMessage(error: unknown) {
   if (error instanceof ActionError) return error.message
-  return "No se pudo guardar el cambio."
+  return "The change could not be saved."
 }
