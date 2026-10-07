@@ -58,4 +58,16 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123). The league desk is at `/a
 
 The local password, if you have not set another one, is `liga-fallguys`. To change it, copy `.env.example` to `.env.local` and edit `ADMIN_PASSWORD`.
 
-Results are stored in `data/league.json` on the server. That file is not committed.
+Results are stored in `data/league.json` on the server. That file is not committed. A fresh server starts from `data/league.seed.json` when the live file is missing. Set `DATA_DIR` if the host keeps that file on a separate disk.
+
+## Keep it online
+
+The scoreboard has to run on a server that stays on. A link from this computer, or from a Cursor session, stops when that session stops. Turning off a personal computer is not what keeps the public page up.
+
+A lasting link needs a host with a copy of this project and a place to keep `data/league.json`. On [Render](https://render.com), create a Web Service from the repository:
+
+- Build command: `npm install && npm run build`
+- Start command: `npm start`
+- Environment variable: `ADMIN_PASSWORD` (the desk password)
+
+The free Render plan sleeps after a few minutes with no visitors, then wakes when someone opens the page. It does not keep the results file across a restart. A plan with a persistent disk, mounted with `DATA_DIR`, keeps the scores. Share only the public site address. Keep `/admin` and the password private.

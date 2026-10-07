@@ -1,0 +1,98 @@
+{
+  "leagues": [
+    {
+      "id": "liga-1",
+      "name": "Superstar League",
+      "accent": "gold",
+      "promotionSlots": 0,
+      "relegationSlots": 5
+    },
+    {
+      "id": "liga-2",
+      "name": "Star League",
+      "accent": "violet",
+      "promotionSlots": 5,
+      "relegationSlots": 5
+    },
+    {
+      "id": "liga-3",
+      "name": "Ace League",
+      "accent": "cyan",
+      "promotionSlots": 5,
+      "relegationSlots": 5
+    },
+    {
+      "id": "liga-4",
+      "name": "Gold League",
+      "accent": "pink",
+      "promotionSlots": 5,
+      "relegationSlots": 5
+    },
+    {
+      "id": "liga-5",
+      "name": "Silver League",
+      "accent": "lime",
+      "promotionSlots": 5,
+      "relegationSlots": 0
+    }
+  ],
+  "players": [
+    {
+      "id": "ede14c90-fe38-4c4b-8218-c53748e2fa40",
+      "leagueId": "liga-1",
+      "name": "salad",
+      "server": "ASIA",
+      "createdAt": "2026-10-06T13:37:31.970Z"
+    },
+    {
+      "id": "8b2d0980-7323-445a-b71b-f246e6929db3",
+      "leagueId": "liga-1",
+      "name": "other salad",
+      "server": "SA",
+      "createdAt": "2026-10-06T13:37:42.945Z"
+    },
+    {
+      "id": "b594d7a1-477e-4646-9526-a6f1c43e6dc8",
+      "leagueId": "liga-1",
+      "name": "osca",
+      "server": "EU",
+      "createdAt": "2026-10-06T15:16:46.142Z"
+    },
+    {
+      "id": "a3ecfd01-ffe5-4b42-bae3-54cd3682ad06",
+      "leagueId": "liga-1",
+      "name": "MI MADRE",
+      "server": "EU",
+      "createdAt": "2026-10-06T15:17:01.033Z"
+    },
+    {
+      "id": "cea2fcfc-7a7f-4c52-8cec-2811c02078ea",
+      "leagueId": "liga-1",
+      "name": "wdad",
+      "server": "daa",
+      "createdAt": "2026-10-06T16:03:46.403Z"
+    },
+    {
+      "id": "115b8691-6c9c-4ede-b2e5-80fdae151ec0",
+      "leagueId": "liga-1",
+      "name": "adadad",
+      "server": "dadadada",
+      "createdAt": "2026-10-06T16:03:50.274Z"
+    },
+    {
+      "id": "642fa122-6307-4257-aff8-33c4af995d90",
+      "leagueId": "liga-1",
+      "name": "adadadsds cx",
+      "server": "adadwe",
+      "createdAt": "2026-10-06T16:03:54.741Z"
+    },
+    {
+      "id": "e3f83125-bb9e-4e16-a2cd-931e5007c65a",
+      "leagueId": "liga-1",
+      "name": "fhgrgdsfs",
+      "server": "qxs",
+      "createdAt": "2026-10-06T16:03:57.874Z"
+    }
+  ],
+  "matches": []
+}

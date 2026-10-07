@@ -15,7 +15,11 @@ import type {
   Player,
 } from "@/lib/types"
 
-const dataFile = path.join(process.cwd(), "data", "league.json")
+const dataFile = path.join(
+  process.env.DATA_DIR?.trim() || path.join(process.cwd(), "data"),
+  "league.json",
+)
+const seedFile = path.join(process.cwd(), "data", "league.seed.json")
 
 class ActionError extends Error {
   status: number
@@ -165,10 +169,29 @@ async function load() {
   try {
     const raw = await readFile(dataFile, "utf8")
     return normalize(JSON.parse(raw) as unknown)
+  } catch (error) {
+    const missing = isMissingFile(error)
+    const state = missing ? await readSeed() : createInitialState()
+    await persist(state)
+    return state
+  }
+}
+
+function isMissingFile(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "ENOENT"
+  )
+}
+
+async function readSeed() {
+  try {
+    const raw = await readFile(seedFile, "utf8")
+    return normalize(JSON.parse(raw) as unknown)
   } catch {
-    const initial = createInitialState()
-    await persist(initial)
-    return initial
+    return createInitialState()
   }
 }
 

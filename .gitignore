@@ -34,8 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
-# league results stay on the machine that hosts the app
+# live results stay on the machine that hosts the app
 /data/*.json
+!/data/league.seed.json
 /data/*.tmp
 
 # vercel
