@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: liga-fall-guys
+    runtime: node
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /data
+      - key: ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: league-data
+      mountPath: /data
+      sizeGB: 1

@@ -62,12 +62,12 @@ Results are stored in `data/league.json` on the server. That file is not committ
 
 ## Keep it online
 
-The scoreboard has to run on a server that stays on. A link from this computer, or from a Cursor session, stops when that session stops. Turning off a personal computer is not what keeps the public page up.
+The public link from a Cursor session stops when that session stops. A scoreboard that stays up all day, and keeps every result, needs a paid host with a disk.
 
-A lasting link needs a host with a copy of this project and a place to keep `data/league.json`. On [Render](https://render.com), create a Web Service from the repository:
+`render.yaml` describes that host on [Render](https://render.com): the smallest paid web service, plus a 1 GB disk mounted at `/data`. The first boot copies `data/league.seed.json` onto that disk. Later edits stay in `data/league.json` there.
 
-- Build command: `npm install && npm run build`
-- Start command: `npm start`
-- Environment variable: `ADMIN_PASSWORD` (the desk password)
+1. Put this project in a repository Render can read.
+2. In the Render dashboard, choose **New Blueprint** and select that repository.
+3. When Render asks for `ADMIN_PASSWORD`, enter the league desk password.
 
-The free Render plan sleeps after a few minutes with no visitors, then wakes when someone opens the page. It does not keep the results file across a restart. A plan with a persistent disk, mounted with `DATA_DIR`, keeps the scores. Share only the public site address. Keep `/admin` and the password private.
+Render then gives you an address ending in `onrender.com`. Share that address. Keep `/admin` and the password private. The free Render plan is a different setup: it sleeps, and it cannot keep this disk.
