@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { buildBoard } from "@/lib/board"
+import { dataDirCandidates, pickWritableDir } from "@/lib/data-dir"
 import { createInitialState } from "@/lib/defaults"
 import { ROUND_LENGTH_MS, matchPhase, roundsStillNeeded } from "@/lib/fixtures"
 import { scoreError } from "@/lib/rules"
@@ -15,11 +16,20 @@ import type {
   Player,
 } from "@/lib/types"
 
-const dataFile = path.join(
-  process.env.DATA_DIR?.trim() || path.join(process.cwd(), "data"),
-  "league.json",
-)
 const seedFile = path.join(process.cwd(), "data", "league.seed.json")
+let dataFilePromise: Promise<string> | null = null
+
+function leagueFile() {
+  if (!dataFilePromise) {
+    dataFilePromise = pickWritableDir(dataDirCandidates())
+      .then((dir) => path.join(dir, "league.json"))
+      .catch((error: unknown) => {
+        dataFilePromise = null
+        throw error
+      })
+  }
+  return dataFilePromise
+}
 
 class ActionError extends Error {
   status: number
@@ -166,13 +176,18 @@ function clampSlot(value: unknown, fallback: number) {
 }
 
 async function load() {
+  let file: string | null = null
   try {
-    const raw = await readFile(dataFile, "utf8")
+    file = await leagueFile()
+    const raw = await readFile(file, "utf8")
     return normalize(JSON.parse(raw) as unknown)
   } catch (error) {
-    const missing = isMissingFile(error)
-    const state = missing ? await readSeed() : createInitialState()
-    await persist(state)
+    const state = file == null || isMissingFile(error) ? await readSeed() : createInitialState()
+    try {
+      await persist(state)
+    } catch {
+      return state
+    }
     return state
   }
 }
@@ -196,6 +211,7 @@ async function readSeed() {
 }
 
 async function persist(state: LeagueState) {
+  const dataFile = await leagueFile()
   await mkdir(path.dirname(dataFile), { recursive: true })
   const tempFile = `${dataFile}.tmp`
   await writeFile(tempFile, JSON.stringify(state, null, 2))
